@@ -3,6 +3,7 @@ import 'package:sizer/sizer.dart';
 import '../core/constants/app_colors.dart';
 import '../core/constants/app_styles.dart';
 import '../widgets/custom_drawer.dart';
+import '../widgets/custom_app_bar.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -52,6 +53,15 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: bgColor,
+      appBar: CustomAppBar(
+        title: _activeDrawerItem,
+        isDarkMode: _isDarkMode,
+        onThemeToggle: () {
+          setState(() {
+            _isDarkMode = !_isDarkMode;
+          });
+        },
+      ),
       drawer: CustomDrawer(
         isDarkMode: _isDarkMode,
         activeItem: _activeDrawerItem,
@@ -70,215 +80,44 @@ class _HomeScreenState extends State<HomeScreen> {
         },
       ),
       body: SafeArea(
-        child: Column(
-          children: [
-            // Top Sticky Bar (App Logo, Theme Switcher, Notifications, Profile Avatar)
-            _buildTopAppBar(context, bgColor, textPrimary, textSecondary, borderColor),
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.2.h),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 1. Greeting & Date Selector Row (PERFECT BALANCED FONTS)
+              _buildGreetingAndDateRow(textPrimary, textSecondary, cardBg, borderColor),
+              SizedBox(height: 2.h),
 
-            // Main Scrollable Dashboard Content
-            Expanded(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.2.h),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // 1. Greeting & Date Selector Row (PERFECT BALANCED FONTS)
-                    _buildGreetingAndDateRow(textPrimary, textSecondary, cardBg, borderColor),
-                    SizedBox(height: 2.h),
+              // 2. Top 2x2 Metric Grid (Total Sales, Purchases, Customers, Vendors - BALANCED ELEGANT FONTS)
+              _buildTop2x2MetricGrid(cardBg, borderColor, textPrimary, textSecondary),
+              SizedBox(height: 2.h),
 
-                    // 2. Top 2x2 Metric Grid (Total Sales, Purchases, Customers, Vendors - BALANCED ELEGANT FONTS)
-                    _buildTop2x2MetricGrid(cardBg, borderColor, textPrimary, textSecondary),
-                    SizedBox(height: 2.h),
+              // 3. Sales & Purchases Target Progress Card (BALANCED FONTS)
+              _buildSalesAndPurchasesTargetCard(cardBg, cardBgLight, borderColor, textPrimary, textSecondary),
+              SizedBox(height: 2.h),
 
-                    // 3. Sales & Purchases Target Progress Card (BALANCED FONTS)
-                    _buildSalesAndPurchasesTargetCard(cardBg, cardBgLight, borderColor, textPrimary, textSecondary),
-                    SizedBox(height: 2.h),
+              // 4. Top 5 Sales (Products) Card (BALANCED FONTS)
+              _buildTop5ProductsCard(cardBg, cardBgLight, borderColor, textPrimary, textSecondary),
+              SizedBox(height: 2.h),
 
-                    // 4. Top 5 Sales (Products) Card (BALANCED FONTS)
-                    _buildTop5ProductsCard(cardBg, cardBgLight, borderColor, textPrimary, textSecondary),
-                    SizedBox(height: 2.h),
+              // 5. Sales Trend Line Chart Card (BALANCED FONTS & PAINTER)
+              _buildSalesTrendChartCard(cardBg, cardBgLight, borderColor, textPrimary, textSecondary),
+              SizedBox(height: 2.h),
 
-                    // 5. Sales Trend Line Chart Card (BALANCED FONTS & PAINTER)
-                    _buildSalesTrendChartCard(cardBg, cardBgLight, borderColor, textPrimary, textSecondary),
-                    SizedBox(height: 2.h),
-
-                    // 6. Recent Sales & Recent Purchases Cards (BALANCED FONTS)
-                    _buildRecentTransactionsSection(cardBg, cardBgLight, borderColor, textPrimary, textSecondary),
-                    SizedBox(height: 2.5.h),
-                  ],
-                ),
-              ),
-            ),
-          ],
+              // 6. Recent Sales & Recent Purchases Cards (BALANCED FONTS)
+              _buildRecentTransactionsSection(cardBg, cardBgLight, borderColor, textPrimary, textSecondary),
+              SizedBox(height: 2.5.h),
+            ],
+          ),
         ),
       ),
       bottomNavigationBar: _buildBottomNavigationBar(cardBg, borderColor, textPrimary, textSecondary),
     );
   }
 
-  // --- 1. Top App Header Bar with Theme Switcher ---
-  Widget _buildTopAppBar(
-    BuildContext context,
-    Color bgColor,
-    Color textPrimary,
-    Color textSecondary,
-    Color borderColor,
-  ) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.2.h),
-      color: bgColor,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          // Menu Toggle & Logo & Brand Name
-          Row(
-            children: [
-              IconButton(
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                icon: Icon(Icons.menu_rounded, color: textPrimary, size: 21.sp),
-                onPressed: () => _scaffoldKey.currentState?.openDrawer(),
-              ),
-              SizedBox(width: 2.5.w),
-              // Brand Icon Logo Badge
-              Container(
-                padding: const EdgeInsets.all(7),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [AppColors.tidcraftOrange, Color(0xFFFF9E00)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(9),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.tidcraftOrange.withValues(alpha: 0.3),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Icon(Icons.apps_rounded, color: Colors.white, size: 15.sp),
-              ),
-              SizedBox(width: 2.5.w),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'FABLEAD',
-                    style: TextStyle(
-                      fontFamily: AppStyles.fontFamily,
-                      fontSize: 14.sp, // PERFECT ELEGANT FONT
-                      fontWeight: FontWeight.w800,
-                      color: textPrimary,
-                      letterSpacing: 1.0,
-                    ),
-                  ),
-                  Text(
-                    'ERP SOLUTIONS',
-                    style: TextStyle(
-                      fontFamily: AppStyles.fontFamily,
-                      fontSize: 8.sp, // Crisp Subtitle
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.tidcraftOrange,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
 
-          // Actions: Theme Switcher Button, Notification Badge, Profile Avatar
-          Row(
-            children: [
-              // Theme Switcher Button (White Theme / Black Theme)
-              GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _isDarkMode = !_isDarkMode;
-                  });
-                },
-                child: Container(
-                  padding: const EdgeInsets.all(7),
-                  decoration: BoxDecoration(
-                    color: _isDarkMode
-                        ? AppColors.tidcraftCardBg
-                        : const Color(0xFFE2E8F0),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: borderColor),
-                  ),
-                  child: Icon(
-                    _isDarkMode
-                        ? Icons.light_mode_outlined
-                        : Icons.dark_mode_outlined,
-                    color: _isDarkMode
-                        ? AppColors.amberAccent
-                        : const Color(0xFF1E293B),
-                    size: 16.sp,
-                  ),
-                ),
-              ),
-              SizedBox(width: 2.w),
-
-              // Notification Bell Icon with Badge
-              Stack(
-                alignment: Alignment.topRight,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(7),
-                    decoration: BoxDecoration(
-                      color: _isDarkMode
-                          ? AppColors.tidcraftCardBg
-                          : const Color(0xFFE2E8F0),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: borderColor),
-                    ),
-                    child: Icon(Icons.notifications_outlined,
-                        color: textPrimary, size: 16.sp),
-                  ),
-                  Positioned(
-                    top: 1,
-                    right: 1,
-                    child: Container(
-                      padding: const EdgeInsets.all(3.5),
-                      decoration: const BoxDecoration(
-                        color: Colors.redAccent,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Text(
-                        '3',
-                        style: TextStyle(
-                          fontSize: 7.5.sp,
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(width: 2.w),
-
-              // Profile Avatar
-              Container(
-                padding: const EdgeInsets.all(7),
-                decoration: BoxDecoration(
-                  color: AppColors.tidcraftOrange.withValues(alpha: 0.2),
-                  shape: BoxShape.circle,
-                  border:
-                      Border.all(color: AppColors.tidcraftOrange, width: 1.2),
-                ),
-                child: Icon(Icons.person_outline_rounded,
-                    color: AppColors.tidcraftOrange, size: 16.sp),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
 
   // --- 2. Greeting & Date Pill Row (PERFECT PROPORTIONS) ---
   Widget _buildGreetingAndDateRow(
@@ -343,7 +182,7 @@ class _HomeScreenState extends State<HomeScreen> {
               borderRadius: BorderRadius.circular(10),
               border: Border.all(color: borderColor),
             ),
-            child: Row(
+            child: Row([]
               children: [
                 Icon(Icons.calendar_today_outlined,
                     color: textSecondary, size: 12.sp),

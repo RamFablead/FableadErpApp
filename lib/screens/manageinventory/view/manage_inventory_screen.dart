@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sizer/sizer.dart';
 import '../../../core/widgets/calculator_widget.dart';
+import '../../../widgets/custom_app_bar.dart';
+import '../../../widgets/custom_drawer.dart';
 import '../../products/view/add_product_screen.dart';
 import 'view_inventory_screen.dart';
 
@@ -1151,9 +1153,15 @@ class _ManageInventoryScreenState extends State<ManageInventoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Note: SafeArea is intentionally omitted per requirements.
+    final bool canGoBack = Navigator.canPop(context);
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
+      appBar: CustomAppBar(
+        title: 'Manage Inventory',
+        showBackButton: canGoBack,
+        isDarkMode: false,
+      ),
+      drawer: const CustomDrawer(isDarkMode: false, activeItem: 'Inventory'),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           setState(() {
@@ -1176,9 +1184,7 @@ class _ManageInventoryScreenState extends State<ManageInventoryScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SizedBox(height: 1.5.h),
-
-                // 1. Top Header Row: Back Arrow + All Inventory + "+ New Product" Button
+                // 1. Header Actions
                 _buildHeader(context),
 
                 SizedBox(height: 2.h),

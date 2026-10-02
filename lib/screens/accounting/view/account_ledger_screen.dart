@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sizer/sizer.dart';
 import '../../../core/widgets/calculator_widget.dart';
+import '../../../widgets/custom_app_bar.dart';
+import '../../../widgets/custom_drawer.dart';
 
 /// Data model for an Account Ledger Item (Paid or Pending)
 class LedgerBillItem {
@@ -345,8 +347,15 @@ class _AccountLedgerScreenState extends State<AccountLedgerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bool canGoBack = Navigator.canPop(context);
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
+      appBar: CustomAppBar(
+        title: 'Account Ledger',
+        showBackButton: canGoBack,
+        isDarkMode: false,
+      ),
+      drawer: const CustomDrawer(isDarkMode: false, activeItem: 'Accounting'),
       body: Stack(
         children: [
           SingleChildScrollView(
@@ -354,8 +363,6 @@ class _AccountLedgerScreenState extends State<AccountLedgerScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildHeaderBar(),
-                const SizedBox(height: 16),
                 _buildFiltersSection(),
                 const SizedBox(height: 14),
                 _buildExportButtonsRow(),
@@ -397,82 +404,7 @@ class _AccountLedgerScreenState extends State<AccountLedgerScreen> {
     );
   }
 
-  // --- 1. Top Header: Back Arrow, Title, "<- Back" Orange Button ---
-  Widget _buildHeaderBar() {
-    return Row(
-      children: [
-        IconButton(
-          icon: const Icon(
-            Icons.arrow_back_rounded,
-            color: Color(0xFF0F172A),
-            size: 24,
-          ),
-          onPressed: () {
-            if (Navigator.canPop(context)) {
-              Navigator.pop(context);
-            } else {
-              Get.back();
-            }
-          },
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            'Account Ledger',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 16.sp,
-              fontWeight: FontWeight.w800,
-              color: const Color(0xFF0F172A),
-              letterSpacing: -0.3,
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
 
-        // Orange "<- Back" Button
-        Material(
-          color: const Color(0xFFFF6B2C),
-          borderRadius: BorderRadius.circular(6),
-          child: InkWell(
-            onTap: () {
-              if (Navigator.canPop(context)) {
-                Navigator.pop(context);
-              } else {
-                Get.back();
-              }
-            },
-            borderRadius: BorderRadius.circular(6),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.arrow_back,
-                    color: Colors.white,
-                    size: 15,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Back',
-                    style: TextStyle(
-                      fontSize: 14.sp,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
 
   // --- 2. Filter Dropdowns Section (Type, Vendor Name, Month, Year) ---
   Widget _buildFiltersSection() {

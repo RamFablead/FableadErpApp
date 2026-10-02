@@ -10,7 +10,6 @@ import '../screens/products/view/import_product_screen.dart';
 import '../screens/manageinventory/view/manage_inventory_screen.dart';
 import '../screens/financers/view/financers_screen.dart';
 import '../screens/productdelivery/view/product_delivery_screen.dart';
-import '../screens/sales&bills/view/sales_screen.dart';
 import '../screens/sales&bills/view/all_sales_screen.dart';
 import '../screens/accounting/view/account_ledger_screen.dart';
 import '../screens/catalogsetup/view/product_category_screen.dart';
@@ -18,13 +17,13 @@ import '../screens/catalogsetup/view/product_category_screen.dart';
 class CustomDrawer extends StatefulWidget {
   final bool isDarkMode;
   final String activeItem;
-  final Function(String) onItemSelected;
+  final Function(String)? onItemSelected;
 
   const CustomDrawer({
     super.key,
     required this.isDarkMode,
     required this.activeItem,
-    required this.onItemSelected,
+    this.onItemSelected,
   });
 
   @override
@@ -158,7 +157,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                         Icons.label_outlined,
                         textPrimary,
                         onTap: () {
-                          widget.onItemSelected('Catalog Setup');
+                          widget.onItemSelected?.call('Catalog Setup');
                           Navigator.pop(context);
                           Get.to(() => const ProductCategoryScreen());
                         },
@@ -168,7 +167,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                         Icons.shopping_cart_outlined,
                         textPrimary,
                         onTap: () {
-                          widget.onItemSelected('Sales & Bills');
+                          widget.onItemSelected?.call('Sales & Bills');
                           Navigator.pop(context);
                           Get.to(() => const AllSalesScreen());
                         },
@@ -178,7 +177,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                         Icons.local_shipping_outlined,
                         textPrimary,
                         onTap: () {
-                          widget.onItemSelected('Products Delivery');
+                          widget.onItemSelected?.call('Products Delivery');
                           Navigator.pop(context);
                           Get.to(() => const ProductDeliveryScreen());
                         },
@@ -190,7 +189,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                         Icons.account_balance_outlined,
                         textPrimary,
                         onTap: () {
-                          widget.onItemSelected('Financers');
+                          widget.onItemSelected?.call('Financers');
                           Navigator.pop(context);
                           Get.to(() => const FinancersScreen());
                         },
@@ -200,7 +199,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                         Icons.inventory_2_outlined,
                         textPrimary,
                         onTap: () {
-                          widget.onItemSelected('Manage Inventory');
+                          widget.onItemSelected?.call('Manage Inventory');
                           Navigator.pop(context);
                           Get.to(() => const ManageInventoryScreen());
                         },
@@ -261,7 +260,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                         Icons.menu_book_outlined,
                         textPrimary,
                         onTap: () {
-                          widget.onItemSelected('Account Ledger');
+                          widget.onItemSelected?.call('Account Ledger');
                           Navigator.pop(context);
                           Get.to(() => const AccountLedgerScreen());
                         },
@@ -470,7 +469,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
             ),
           ),
           onTap: () {
-            widget.onItemSelected(title);
+            widget.onItemSelected?.call(title);
             Navigator.pop(context);
           },
         ),
@@ -672,7 +671,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
 
     return InkWell(
       onTap: () {
-        widget.onItemSelected(title);
+        widget.onItemSelected?.call(title);
         Navigator.pop(context);
         Get.to(() => destination);
       },
@@ -749,7 +748,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
             if (onTap != null) {
               onTap();
             } else {
-              widget.onItemSelected(title);
+              widget.onItemSelected?.call(title);
               Navigator.pop(context);
             }
           },

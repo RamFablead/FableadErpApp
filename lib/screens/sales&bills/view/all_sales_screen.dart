@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sizer/sizer.dart';
 import '../../../core/widgets/calculator_widget.dart';
+import '../../../widgets/custom_app_bar.dart';
+import '../../../widgets/custom_drawer.dart';
 import 'sales_screen.dart';
 
 /// Model representing a single Sales & Bill row item
@@ -831,8 +833,15 @@ class _AllSalesScreenState extends State<AllSalesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bool canGoBack = Navigator.canPop(context);
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
+      appBar: CustomAppBar(
+        title: 'All Sales & Bills',
+        showBackButton: canGoBack,
+        isDarkMode: false,
+      ),
+      drawer: const CustomDrawer(isDarkMode: false, activeItem: 'Sales'),
       body: Stack(
         children: [
           SingleChildScrollView(

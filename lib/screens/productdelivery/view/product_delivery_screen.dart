@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sizer/sizer.dart';
 import '../../../core/widgets/calculator_widget.dart';
+import '../../../widgets/custom_app_bar.dart';
+import '../../../widgets/custom_drawer.dart';
 
 /// Model representing a Product Delivery order item
 class DeliveryOrder {
@@ -595,9 +597,16 @@ class _ProductDeliveryScreenState extends State<ProductDeliveryScreen> {
   @override
   Widget build(BuildContext context) {
     final filtered = _filteredOrders;
+    final bool canGoBack = Navigator.canPop(context);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
+      appBar: CustomAppBar(
+        title: 'Product Delivery',
+        showBackButton: canGoBack,
+        isDarkMode: false,
+      ),
+      drawer: const CustomDrawer(isDarkMode: false, activeItem: 'Delivery'),
       body: Stack(
         children: [
           SingleChildScrollView(
@@ -605,8 +614,6 @@ class _ProductDeliveryScreenState extends State<ProductDeliveryScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildHeader(),
-                const SizedBox(height: 16),
                 _buildFilterCard(),
                 const SizedBox(height: 16),
                 if (filtered.isEmpty)
@@ -655,56 +662,7 @@ class _ProductDeliveryScreenState extends State<ProductDeliveryScreen> {
     );
   }
 
-  // --- Top Header: Back Arrow, Title, Subtitle ---
-  Widget _buildHeader() {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        IconButton(
-          icon: const Icon(
-            Icons.arrow_back_rounded,
-            color: Color(0xFF0F172A),
-            size: 24,
-          ),
-          onPressed: () {
-            if (Navigator.canPop(context)) {
-              Navigator.pop(context);
-            } else {
-              Get.back();
-            }
-          },
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Products Delivery',
-                style: TextStyle(
-                  fontSize: 16.sp,
-                  fontWeight: FontWeight.w800,
-                  color: const Color(0xFF0F172A),
-                  letterSpacing: -0.3,
-                ),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                'View and manage delivery status for all sales orders',
-                style: TextStyle(
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w400,
-                  color: const Color(0xFF64748B),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
+
 
   // --- Filter Card: Search Order Number + Status + From Date + To Date ---
   Widget _buildFilterCard() {

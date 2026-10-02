@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sizer/sizer.dart';
 import '../../../core/widgets/calculator_widget.dart';
+import '../../../widgets/custom_app_bar.dart';
+import '../../../widgets/custom_drawer.dart';
 import 'add_product_screen.dart';
 
 /// Model representing a raw material item.
@@ -220,9 +222,15 @@ class _RawMaterialsScreenState extends State<RawMaterialsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Note: SafeArea is intentionally omitted per requirements.
+    final bool canGoBack = Navigator.canPop(context);
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
+      appBar: CustomAppBar(
+        title: 'Raw Materials',
+        showBackButton: canGoBack,
+        isDarkMode: false,
+      ),
+      drawer: const CustomDrawer(isDarkMode: false, activeItem: 'Products'),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           setState(() {
@@ -245,12 +253,10 @@ class _RawMaterialsScreenState extends State<RawMaterialsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SizedBox(height: 2.h),
-
-                // Top Header: Title & Action Button
+                // Action Header
                 _buildHeader(context),
 
-                SizedBox(height: 2.5.h),
+                SizedBox(height: 2.h),
 
                 // Search & Filter Card
                 _buildFilterCard(),
@@ -289,41 +295,12 @@ class _RawMaterialsScreenState extends State<RawMaterialsScreen> {
   }
 
   Widget _buildHeader(BuildContext context) {
-    return Wrap(
-      alignment: WrapAlignment.spaceBetween,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      runSpacing: 1.5.h,
-      spacing: 2.w,
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
       children: [
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (Navigator.canPop(context)) ...[
-              IconButton(
-                icon: const Icon(
-                  Icons.arrow_back_ios_new_rounded,
-                  color: Color(0xFF0F172A),
-                  size: 20,
-                ),
-                onPressed: () => Navigator.pop(context),
-                tooltip: 'Back',
-              ),
-              SizedBox(width: 1.w),
-            ],
-            Text(
-              'All Raw Materials',
-              style: TextStyle(
-                fontSize: 16.sp,
-                fontWeight: FontWeight.w800,
-                color: const Color(0xFF0F172A),
-                letterSpacing: -0.3,
-              ),
-            ),
-          ],
-        ),
         // Add Raw Material Button using Get.to
         Material(
-          color: const Color(0xFFFFA043),
+          color: const Color(0xFFFF6B2C),
           borderRadius: BorderRadius.circular(6),
           child: InkWell(
             onTap: () {
