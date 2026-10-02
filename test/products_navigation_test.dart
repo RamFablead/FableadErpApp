@@ -220,7 +220,7 @@ void main() {
     String selected = '';
     await tester.pumpWidget(
       createTestApp(
-        activeItem: 'Accounting',
+        activeItem: 'Account Ledger',
         onItemSelected: (item) => selected = item,
       ),
     );
@@ -228,11 +228,7 @@ void main() {
     await tester.tap(find.text('Open Drawer'));
     await tester.pumpAndSettle();
 
-    await tester.scrollUntilVisible(
-      find.text('Account Ledger'),
-      200,
-      scrollable: find.byType(Scrollable).first,
-    );
+    await tester.ensureVisible(find.text('Account Ledger'));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Account Ledger'));

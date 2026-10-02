@@ -56,6 +56,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
     }
     if (widget.activeItem == 'Account Ledger') {
       _isAccountingExpanded = true;
+      _isErpExpanded = false;
     }
     if (widget.activeItem == 'Catalog Setup') {
       _isErpExpanded = true;
