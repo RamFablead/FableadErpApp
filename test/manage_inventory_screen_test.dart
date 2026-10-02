@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:sizer/sizer.dart';
 import 'package:fableaderpapp/screens/manageinventory/view/manage_inventory_screen.dart';
+import 'package:fableaderpapp/screens/manageinventory/view/view_inventory_screen.dart';
 
 void main() {
   testWidgets('ManageInventoryScreen renders exact mobile layout with cards and actions',
@@ -75,12 +76,12 @@ void main() {
     await tester.pump();
     expect(find.text('Test-Disha-2'), findsOneWidget);
 
-    // Test View History Dialog
+    // Test View History Navigation
     await tester.tap(find.text('View History').first);
     await tester.pumpAndSettle();
-    expect(find.text('Stock History: Test-Disha-2'), findsOneWidget);
-    expect(find.text('Close'), findsOneWidget);
-    await tester.tap(find.text('Close'));
+    expect(find.byType(ViewInventoryScreen), findsOneWidget);
+    expect(find.text('View Inventory'), findsOneWidget);
+    await tester.tap(find.byTooltip('Back').first);
     await tester.pumpAndSettle();
 
     // Test Add / Edit Stock Dialog

@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:sizer/sizer.dart';
 import '../../../core/widgets/calculator_widget.dart';
 import '../../products/view/add_product_screen.dart';
+import 'view_inventory_screen.dart';
 
 /// Helper to format date as dd-mm-yyyy
 String _formatDate(DateTime dt) {
@@ -352,190 +353,7 @@ class _ManageInventoryScreenState extends State<ManageInventoryScreen> {
   }
 
   void _showViewHistoryDialog(InventoryItem item) {
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        return Dialog(
-          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Container(
-            width: double.infinity,
-            constraints: const BoxConstraints(maxWidth: 600),
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Stock History: ${item.productName}',
-                        style: TextStyle(
-                          fontSize: 16.sp,
-                          fontWeight: FontWeight.w700,
-                          color: const Color(0xFF0F172A),
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded),
-                      onPressed: () => Navigator.pop(ctx),
-                      color: const Color(0xFF64748B),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Current Stock: ${item.currentStock.toStringAsFixed(2)} | Price: ₹${item.price.toStringAsFixed(2)}',
-                  style: TextStyle(
-                    fontSize: 14.sp,
-                    color: const Color(0xFF64748B),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                const Divider(height: 1, color: Color(0xFFE2E8F0)),
-                const SizedBox(height: 14),
-                if (item.history.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 24),
-                    child: Center(
-                      child: Text(
-                        'No history records found for this product.',
-                        style: TextStyle(
-                          fontSize: 14.sp,
-                          color: const Color(0xFF94A3B8),
-                        ),
-                      ),
-                    ),
-                  )
-                else
-                  Flexible(
-                    child: ListView.separated(
-                      shrinkWrap: true,
-                      itemCount: item.history.length,
-                      separatorBuilder: (_, __) =>
-                          const Divider(color: Color(0xFFF1F5F9), height: 16),
-                      itemBuilder: (context, index) {
-                        final rec = item.history[index];
-                        final isPositive = rec.quantityChanged >= 0;
-                        return Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: isPositive
-                                    ? const Color(0xFFECFDF5)
-                                    : const Color(0xFFFEF2F2),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Icon(
-                                isPositive
-                                    ? Icons.add_circle_outline_rounded
-                                    : Icons.remove_circle_outline_rounded,
-                                color: isPositive
-                                    ? const Color(0xFF10B981)
-                                    : const Color(0xFFEF4444),
-                                size: 20,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          rec.actionType,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            fontSize: 14.sp,
-                                            fontWeight: FontWeight.w600,
-                                            color: const Color(0xFF1E293B),
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        '${isPositive ? '+' : ''}${rec.quantityChanged.toStringAsFixed(2)}',
-                                        style: TextStyle(
-                                          fontSize: 14.sp,
-                                          fontWeight: FontWeight.w700,
-                                          color: isPositive
-                                              ? const Color(0xFF10B981)
-                                              : const Color(0xFFEF4444),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    '${_formatDate(rec.date)} • Balance: ${rec.resultingStock.toStringAsFixed(2)}',
-                                    style: TextStyle(
-                                      fontSize: 14.sp,
-                                      color: const Color(0xFF64748B),
-                                    ),
-                                  ),
-                                  if (rec.remarks.isNotEmpty) ...[
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      'Remarks: ${rec.remarks}',
-                                      style: TextStyle(
-                                        fontSize: 14.sp,
-                                        fontStyle: FontStyle.italic,
-                                        color: const Color(0xFF94A3B8),
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-                  ),
-                const SizedBox(height: 16),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: Material(
-                    color: const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(8),
-                    child: InkWell(
-                      onTap: () => Navigator.pop(ctx),
-                      borderRadius: BorderRadius.circular(8),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 10),
-                        child: Text(
-                          'Close',
-                          style: TextStyle(
-                            fontSize: 14.sp,
-                            fontWeight: FontWeight.w600,
-                            color: const Color(0xFF475569),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
+    Get.to(() => ViewInventoryScreen(productName: item.productName));
   }
 
   void _showAddEditStockDialog(InventoryItem item) {
@@ -1789,7 +1607,7 @@ class _ManageInventoryScreenState extends State<ManageInventoryScreen> {
                   constraints: const BoxConstraints(),
                   onSelected: (val) {
                     if (val == 'history') {
-                      _showViewHistoryDialog(item);
+                      Get.to(() => ViewInventoryScreen(productName: item.productName));
                     } else if (val == 'stock') {
                       _showAddEditStockDialog(item);
                     } else if (val == 'transfer') {
@@ -1920,7 +1738,7 @@ class _ManageInventoryScreenState extends State<ManageInventoryScreen> {
                   child: _buildPeachActionButton(
                     icon: Icons.access_time_rounded,
                     label: 'View History',
-                    onTap: () => _showViewHistoryDialog(item),
+                    onTap: () => Get.to(() => ViewInventoryScreen(productName: item.productName)),
                   ),
                 ),
                 const SizedBox(width: 8),
