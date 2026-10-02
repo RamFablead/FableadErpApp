@@ -8,6 +8,7 @@ import '../screens/products/view/add_product_screen.dart';
 import '../screens/products/view/raw_materials_screen.dart';
 import '../screens/products/view/import_product_screen.dart';
 import '../screens/manageinventory/view/manage_inventory_screen.dart';
+import '../screens/financers/view/financers_screen.dart';
 
 class CustomDrawer extends StatefulWidget {
   final bool isDarkMode;
@@ -145,7 +146,16 @@ class _CustomDrawerState extends State<CustomDrawer> {
                       _buildSubMenuItem('Products Delivery', Icons.local_shipping_outlined, textPrimary),
                       _buildSubMenuItem('Purchases', Icons.receipt_long_outlined, textPrimary),
                       _buildSubMenuItem('Vendors', Icons.handshake_outlined, textPrimary),
-                      _buildSubMenuItem('Financers', Icons.account_balance_outlined, textPrimary),
+                      _buildSubMenuItem(
+                        'Financers',
+                        Icons.account_balance_outlined,
+                        textPrimary,
+                        onTap: () {
+                          widget.onItemSelected('Financers');
+                          Navigator.pop(context);
+                          Get.to(() => const FinancersScreen());
+                        },
+                      ),
                       _buildSubMenuItem(
                         'Manage Inventory',
                         Icons.inventory_2_outlined,
