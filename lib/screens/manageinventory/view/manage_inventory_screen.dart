@@ -1226,41 +1226,16 @@ class _ManageInventoryScreenState extends State<ManageInventoryScreen> {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Expanded(
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                icon: const Icon(
-                  Icons.arrow_back,
-                  color: Color(0xFF0F172A),
-                  size: 22,
-                ),
-                onPressed: () {
-                  if (Navigator.canPop(context)) {
-                    Navigator.pop(context);
-                  } else {
-                    Get.back();
-                  }
-                },
-                tooltip: 'Back',
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-              ),
-              const SizedBox(width: 8),
-              Flexible(
-                child: Text(
-                  'All Inventory',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 16.sp,
-                    fontWeight: FontWeight.w800,
-                    color: const Color(0xFF0F172A),
-                    letterSpacing: -0.3,
-                  ),
-                ),
-              ),
-            ],
+          child: Text(
+            'All Inventory',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 16.sp,
+              fontWeight: FontWeight.w800,
+              color: const Color(0xFF0F172A),
+              letterSpacing: -0.3,
+            ),
           ),
         ),
         const SizedBox(width: 8),

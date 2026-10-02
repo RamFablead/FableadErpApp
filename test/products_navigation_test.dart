@@ -8,6 +8,8 @@ import 'package:fableaderpapp/screens/products/view/add_product_screen.dart';
 import 'package:fableaderpapp/screens/products/view/raw_materials_screen.dart';
 import 'package:fableaderpapp/screens/products/view/import_product_screen.dart';
 import 'package:fableaderpapp/screens/manageinventory/view/manage_inventory_screen.dart';
+import 'package:fableaderpapp/screens/catalogsetup/view/product_category_screen.dart';
+import 'package:fableaderpapp/screens/accounting/view/account_ledger_screen.dart';
 
 Widget createTestApp({
   required String activeItem,
@@ -183,6 +185,61 @@ void main() {
 
     expect(selected, 'Manage Inventory');
     expect(find.byType(ManageInventoryScreen), findsOneWidget);
+  });
+
+  testWidgets('CustomDrawer navigates to Catalog Setup using Get.to',
+      (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1200, 1600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() => tester.view.resetPhysicalSize());
+
+    String selected = '';
+    await tester.pumpWidget(
+      createTestApp(
+        activeItem: 'ERP',
+        onItemSelected: (item) => selected = item,
+      ),
+    );
+
+    await tester.tap(find.text('Open Drawer'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Catalog Setup'));
+    await tester.pumpAndSettle();
+
+    expect(selected, 'Catalog Setup');
+    expect(find.byType(ProductCategoryScreen), findsOneWidget);
+  });
+
+  testWidgets('CustomDrawer navigates to Account Ledger using Get.to',
+      (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1200, 1600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() => tester.view.resetPhysicalSize());
+
+    String selected = '';
+    await tester.pumpWidget(
+      createTestApp(
+        activeItem: 'Accounting',
+        onItemSelected: (item) => selected = item,
+      ),
+    );
+
+    await tester.tap(find.text('Open Drawer'));
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(
+      find.text('Account Ledger'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Account Ledger'));
+    await tester.pumpAndSettle();
+
+    expect(selected, 'Account Ledger');
+    expect(find.byType(AccountLedgerScreen), findsOneWidget);
   });
 }
 

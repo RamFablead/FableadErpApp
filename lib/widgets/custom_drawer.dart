@@ -9,6 +9,11 @@ import '../screens/products/view/raw_materials_screen.dart';
 import '../screens/products/view/import_product_screen.dart';
 import '../screens/manageinventory/view/manage_inventory_screen.dart';
 import '../screens/financers/view/financers_screen.dart';
+import '../screens/productdelivery/view/product_delivery_screen.dart';
+import '../screens/sales&bills/view/sales_screen.dart';
+import '../screens/sales&bills/view/all_sales_screen.dart';
+import '../screens/accounting/view/account_ledger_screen.dart';
+import '../screens/catalogsetup/view/product_category_screen.dart';
 
 class CustomDrawer extends StatefulWidget {
   final bool isDarkMode;
@@ -48,6 +53,12 @@ class _CustomDrawerState extends State<CustomDrawer> {
         widget.activeItem == 'All Raw Materials' ||
         widget.activeItem == 'Import Products') {
       _isProductsExpanded = true;
+    }
+    if (widget.activeItem == 'Account Ledger') {
+      _isAccountingExpanded = true;
+    }
+    if (widget.activeItem == 'Catalog Setup') {
+      _isErpExpanded = true;
     }
   }
 
@@ -141,9 +152,36 @@ class _CustomDrawerState extends State<CustomDrawer> {
                     textSecondary: textSecondary,
                     children: [
                       _buildProductsAccordion(textPrimary, textSecondary),
-                      _buildSubMenuItem('Catalog Setup', Icons.label_outlined, textPrimary),
-                      _buildSubMenuItem('Sales & Bills', Icons.shopping_cart_outlined, textPrimary),
-                      _buildSubMenuItem('Products Delivery', Icons.local_shipping_outlined, textPrimary),
+                      _buildSubMenuItem(
+                        'Catalog Setup',
+                        Icons.label_outlined,
+                        textPrimary,
+                        onTap: () {
+                          widget.onItemSelected('Catalog Setup');
+                          Navigator.pop(context);
+                          Get.to(() => const ProductCategoryScreen());
+                        },
+                      ),
+                      _buildSubMenuItem(
+                        'Sales & Bills',
+                        Icons.shopping_cart_outlined,
+                        textPrimary,
+                        onTap: () {
+                          widget.onItemSelected('Sales & Bills');
+                          Navigator.pop(context);
+                          Get.to(() => const AllSalesScreen());
+                        },
+                      ),
+                      _buildSubMenuItem(
+                        'Products Delivery',
+                        Icons.local_shipping_outlined,
+                        textPrimary,
+                        onTap: () {
+                          widget.onItemSelected('Products Delivery');
+                          Navigator.pop(context);
+                          Get.to(() => const ProductDeliveryScreen());
+                        },
+                      ),
                       _buildSubMenuItem('Purchases', Icons.receipt_long_outlined, textPrimary),
                       _buildSubMenuItem('Vendors', Icons.handshake_outlined, textPrimary),
                       _buildSubMenuItem(
@@ -208,7 +246,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                   ),
 
                 // Group 4: Accounting
-                if (_shouldShowAny(['Accounting', 'Manage Accounting', 'Receipt & Payment', 'Expenses', 'Cash & Bank', 'Credit/Debit Notes', 'GST Reports']))
+                if (_shouldShowAny(['Accounting', 'Account Ledger', 'Manage Accounting', 'Receipt & Payment', 'Expenses', 'Cash & Bank', 'Credit/Debit Notes', 'GST Reports']))
                   _buildExpandableCategory(
                     title: 'Accounting',
                     icon: Icons.calculate_outlined,
@@ -217,6 +255,16 @@ class _CustomDrawerState extends State<CustomDrawer> {
                     textPrimary: textPrimary,
                     textSecondary: textSecondary,
                     children: [
+                      _buildSubMenuItem(
+                        'Account Ledger',
+                        Icons.menu_book_outlined,
+                        textPrimary,
+                        onTap: () {
+                          widget.onItemSelected('Account Ledger');
+                          Navigator.pop(context);
+                          Get.to(() => const AccountLedgerScreen());
+                        },
+                      ),
                       _buildSubMenuItem('Manage Accounting', Icons.assessment_outlined, textPrimary),
                       _buildSubMenuItem('Receipt & Payment', Icons.receipt_outlined, textPrimary),
                       _buildSubMenuItem('Expenses', Icons.credit_card_outlined, textPrimary),
@@ -486,7 +534,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
             ),
           ),
         ),
-        if (isExpanded)
+        if (isExpanded || _searchQuery.isNotEmpty)
           Padding(
             padding: EdgeInsets.only(left: 4.w),
             child: Column(children: children),
