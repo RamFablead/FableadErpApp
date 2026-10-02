@@ -5,7 +5,7 @@ import 'package:fableaderpapp/screens/products/view/add_product_screen.dart';
 
 void main() {
   testWidgets('AddProductScreen renders form fields and handles interactions', (WidgetTester tester) async {
-    tester.view.physicalSize = const Size(1200, 2000);
+    tester.view.physicalSize = const Size(1800, 2400);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(() => tester.view.resetPhysicalSize());
 
@@ -45,6 +45,10 @@ void main() {
     await tester.tap(find.text('Variant Product'));
     await tester.pumpAndSettle();
 
+    // Scroll to Product Variants table
+    await tester.ensureVisible(find.text('Product Variants'));
+    await tester.pumpAndSettle();
+
     // Verify Product Variants table appears
     expect(find.text('Product Variants'), findsOneWidget);
     expect(find.text('Add More'), findsOneWidget);
@@ -59,8 +63,10 @@ void main() {
     // There should now be 2 delete buttons
     expect(find.byIcon(Icons.delete_outline_rounded), findsNWidgets(2));
 
-    // Tap delete on first row
-    await tester.tap(find.byIcon(Icons.delete_outline_rounded).first);
+    // Drag table horizontally to reveal delete button and tap it
+    await tester.drag(find.byType(DataTable), const Offset(-500, 0), warnIfMissed: false);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.delete_outline_rounded).first, warnIfMissed: false);
     await tester.pumpAndSettle();
 
     // Should now have 1 delete button left
@@ -68,12 +74,16 @@ void main() {
 
     // Dynamic Rent Fields appear on checking "Available for Rent"
     expect(find.text('Rent Type'), findsNothing);
+    await tester.ensureVisible(find.text('Available for Rent'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Available for Rent'));
     await tester.pumpAndSettle();
     expect(find.text('Rent Type'), findsOneWidget);
     expect(find.text('Rent Price'), findsOneWidget);
 
     // Dialog test: Add Unit
+    await tester.ensureVisible(find.text('Add Unit'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Add Unit'));
     await tester.pumpAndSettle();
     expect(find.text('Add New Unit'), findsOneWidget);
