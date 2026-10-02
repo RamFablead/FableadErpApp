@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:sizer/sizer.dart';
 import '../core/constants/app_colors.dart';
 import '../core/constants/app_styles.dart';
+import '../screens/products/view/product_screen.dart';
+import '../screens/products/view/add_product_screen.dart';
+import '../screens/products/view/raw_materials_screen.dart';
+import '../screens/products/view/import_product_screen.dart';
+import '../screens/manageinventory/view/manage_inventory_screen.dart';
 
 class CustomDrawer extends StatefulWidget {
   final bool isDarkMode;
@@ -25,11 +31,24 @@ class _CustomDrawerState extends State<CustomDrawer> {
 
   // Track expanded tile sections
   bool _isErpExpanded = true;
+  bool _isProductsExpanded = false;
   bool _isCrmExpanded = false;
   bool _isReportsExpanded = false;
   bool _isAccountingExpanded = false;
   bool _isHrExpanded = false;
   bool _isSettingsExpanded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.activeItem == 'Products' ||
+        widget.activeItem == 'All Products' ||
+        widget.activeItem == 'New Product' ||
+        widget.activeItem == 'All Raw Materials' ||
+        widget.activeItem == 'Import Products') {
+      _isProductsExpanded = true;
+    }
+  }
 
   @override
   void dispose() {
@@ -111,7 +130,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                   ),
 
                 // Group 1: ERP
-                if (_shouldShowAny(['ERP', 'Products', 'Catalog Setup', 'Sales & Bills', 'Products Delivery', 'Purchases', 'Vendors', 'Financers', 'Manage Inventory', 'Returns']))
+                if (_shouldShowAny(['ERP', 'Products', 'All Products', 'New Product', 'All Raw Materials', 'Import Products', 'Catalog Setup', 'Sales & Bills', 'Products Delivery', 'Purchases', 'Vendors', 'Financers', 'Manage Inventory', 'Returns']))
                   _buildExpandableCategory(
                     title: 'ERP',
                     icon: Icons.business_center_outlined,
@@ -120,14 +139,23 @@ class _CustomDrawerState extends State<CustomDrawer> {
                     textPrimary: textPrimary,
                     textSecondary: textSecondary,
                     children: [
-                      _buildSubMenuItem('Products', Icons.inventory_2_outlined, textPrimary),
+                      _buildProductsAccordion(textPrimary, textSecondary),
                       _buildSubMenuItem('Catalog Setup', Icons.label_outlined, textPrimary),
                       _buildSubMenuItem('Sales & Bills', Icons.shopping_cart_outlined, textPrimary),
                       _buildSubMenuItem('Products Delivery', Icons.local_shipping_outlined, textPrimary),
                       _buildSubMenuItem('Purchases', Icons.receipt_long_outlined, textPrimary),
                       _buildSubMenuItem('Vendors', Icons.handshake_outlined, textPrimary),
                       _buildSubMenuItem('Financers', Icons.account_balance_outlined, textPrimary),
-                      _buildSubMenuItem('Manage Inventory', Icons.store_outlined, textPrimary),
+                      _buildSubMenuItem(
+                        'Manage Inventory',
+                        Icons.inventory_2_outlined,
+                        textPrimary,
+                        onTap: () {
+                          widget.onItemSelected('Manage Inventory');
+                          Navigator.pop(context);
+                          Get.to(() => const ManageInventoryScreen());
+                        },
+                      ),
                       _buildSubMenuItem('Returns', Icons.replay_outlined, textPrimary),
                     ],
                   ),
@@ -288,8 +316,8 @@ class _CustomDrawerState extends State<CustomDrawer> {
         children: [
           // Circular FE Profile Avatar
           Container(
-            width: 15.w,
-            height: 15.w,
+            width: 48,
+            height: 48,
             decoration: const BoxDecoration(
               color: AppColors.tidcraftOrange,
               shape: BoxShape.circle,
@@ -299,14 +327,14 @@ class _CustomDrawerState extends State<CustomDrawer> {
                 'FE',
                 style: TextStyle(
                   fontFamily: AppStyles.fontFamily,
-                  fontSize: 16.sp, // LARGER Avatar text
+                  fontSize: 14.sp,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
                 ),
               ),
             ),
           ),
-          SizedBox(width: 4.w),
+          const SizedBox(width: 14),
 
           // User Name & Email Side-by-side with Profile Avatar (LARGER FONTS)
           Expanded(
@@ -364,26 +392,29 @@ class _CustomDrawerState extends State<CustomDrawer> {
                     color: AppColors.tidcraftOrange, width: 4.w.clamp(3.5, 4)))
             : null,
       ),
-      child: ListTile(
-        contentPadding: EdgeInsets.symmetric(horizontal: 3.5.w, vertical: 0.3.h),
-        leading: Icon(
-          icon,
-          color: isSelected ? AppColors.tidcraftOrange : textPrimary.withValues(alpha: 0.85),
-          size: 19.sp, // LARGER Icon
-        ),
-        title: Text(
-          title,
-          style: TextStyle(
-            fontFamily: AppStyles.fontFamily,
-            fontSize: 14.5.sp, // LARGER Menu Title Font
-            fontWeight: isSelected ? FontWeight.w900 : FontWeight.w800,
-            color: isSelected ? AppColors.tidcraftOrange : textPrimary,
+      child: Material(
+        color: Colors.transparent,
+        child: ListTile(
+          contentPadding: EdgeInsets.symmetric(horizontal: 3.5.w, vertical: 0.3.h),
+          leading: Icon(
+            icon,
+            color: isSelected ? AppColors.tidcraftOrange : textPrimary.withValues(alpha: 0.85),
+            size: 19.sp, // LARGER Icon
           ),
+          title: Text(
+            title,
+            style: TextStyle(
+              fontFamily: AppStyles.fontFamily,
+              fontSize: 14.5.sp, // LARGER Menu Title Font
+              fontWeight: isSelected ? FontWeight.w900 : FontWeight.w800,
+              color: isSelected ? AppColors.tidcraftOrange : textPrimary,
+            ),
+          ),
+          onTap: () {
+            widget.onItemSelected(title);
+            Navigator.pop(context);
+          },
         ),
-        onTap: () {
-          widget.onItemSelected(title);
-          Navigator.pop(context);
-        },
       ),
     );
   }
@@ -415,31 +446,34 @@ class _CustomDrawerState extends State<CustomDrawer> {
                         color: AppColors.tidcraftOrange, width: 4))
                 : null,
           ),
-          child: ListTile(
-            contentPadding:
-                EdgeInsets.symmetric(horizontal: 3.5.w, vertical: 0.3.h),
-            leading: Icon(
-              icon,
-              color: isSelected ? AppColors.tidcraftOrange : textPrimary.withValues(alpha: 0.85),
-              size: 19.sp, // LARGER Icon
-            ),
-            title: Text(
-              title,
-              style: TextStyle(
-                fontFamily: AppStyles.fontFamily,
-                fontSize: 14.5.sp, // LARGER Category Title Font
-                fontWeight: isSelected ? FontWeight.w900 : FontWeight.w800,
-                color: isSelected ? AppColors.tidcraftOrange : textPrimary,
+          child: Material(
+            color: Colors.transparent,
+            child: ListTile(
+              contentPadding:
+                  EdgeInsets.symmetric(horizontal: 3.5.w, vertical: 0.3.h),
+              leading: Icon(
+                icon,
+                color: isSelected ? AppColors.tidcraftOrange : textPrimary.withValues(alpha: 0.85),
+                size: 19.sp, // LARGER Icon
               ),
+              title: Text(
+                title,
+                style: TextStyle(
+                  fontFamily: AppStyles.fontFamily,
+                  fontSize: 14.5.sp, // LARGER Category Title Font
+                  fontWeight: isSelected ? FontWeight.w900 : FontWeight.w800,
+                  color: isSelected ? AppColors.tidcraftOrange : textPrimary,
+                ),
+              ),
+              trailing: Icon(
+                isExpanded
+                    ? Icons.keyboard_arrow_down_rounded
+                    : Icons.chevron_right_rounded,
+                color: textSecondary,
+                size: 20.sp, // LARGER Arrow
+              ),
+              onTap: onToggle,
             ),
-            trailing: Icon(
-              isExpanded
-                  ? Icons.keyboard_arrow_down_rounded
-                  : Icons.chevron_right_rounded,
-              color: textSecondary,
-              size: 20.sp, // LARGER Arrow
-            ),
-            onTap: onToggle,
           ),
         ),
         if (isExpanded)
@@ -451,12 +485,178 @@ class _CustomDrawerState extends State<CustomDrawer> {
     );
   }
 
+  // --- Products Accordion matching UI Design Screenshots ---
+  Widget _buildProductsAccordion(
+    Color textPrimary,
+    Color textSecondary,
+  ) {
+    final isSelected = widget.activeItem == 'Products' ||
+        widget.activeItem == 'All Products' ||
+        widget.activeItem == 'New Product' ||
+        widget.activeItem == 'All Raw Materials' ||
+        widget.activeItem == 'Import Products';
+
+    if (!_isProductsExpanded && !isSelected) {
+      // Collapsed View matching Image 1
+      return _buildSubMenuItem(
+        'Products',
+        Icons.inventory_2_outlined,
+        textPrimary,
+        onTap: () {
+          setState(() {
+            _isProductsExpanded = true;
+          });
+        },
+      );
+    }
+
+    // Expanded View matching Image 2
+    return Container(
+      margin: EdgeInsets.symmetric(vertical: 0.5.h),
+      decoration: BoxDecoration(
+        color: widget.isDarkMode
+            ? AppColors.tidcraftCardLight
+            : Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: widget.isDarkMode
+              ? AppColors.tidcraftBorder
+              : const Color(0xFFE2E8F0),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Dark Navy Banner Header
+          InkWell(
+            onTap: () {
+              setState(() {
+                _isProductsExpanded = !_isProductsExpanded;
+              });
+            },
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(7)),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: const BoxDecoration(
+                color: Color(0xFF1E293B), // Dark Navy Banner
+                borderRadius: BorderRadius.vertical(top: Radius.circular(7)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.inventory_2_rounded,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Products',
+                      style: TextStyle(
+                        fontFamily: AppStyles.fontFamily,
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                  Icon(
+                    _isProductsExpanded
+                        ? Icons.keyboard_arrow_down_rounded
+                        : Icons.chevron_right_rounded,
+                    color: Colors.white70,
+                    size: 20,
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Sub-item 1: All Products
+          _buildProductChildItem(
+            title: 'All Products',
+            destination: const ProductScreen(),
+            textPrimary: textPrimary,
+          ),
+
+          // Sub-item 2: New Product
+          _buildProductChildItem(
+            title: 'New Product',
+            destination: const AddProductScreen(),
+            textPrimary: textPrimary,
+          ),
+
+          // Sub-item 3: All Raw Materials
+          _buildProductChildItem(
+            title: 'All Raw Materials',
+            destination: const RawMaterialsScreen(),
+            textPrimary: textPrimary,
+          ),
+
+          // Sub-item 4: Import Products
+          _buildProductChildItem(
+            title: 'Import Products',
+            destination: const ImportProductScreen(),
+            textPrimary: textPrimary,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProductChildItem({
+    required String title,
+    required Widget destination,
+    required Color textPrimary,
+  }) {
+    final isSelected = widget.activeItem == title;
+
+    return InkWell(
+      onTap: () {
+        widget.onItemSelected(title);
+        Navigator.pop(context);
+        Get.to(() => destination);
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Row(
+          children: [
+            Icon(
+              isSelected
+                  ? Icons.radio_button_checked_rounded
+                  : Icons.radio_button_unchecked_rounded,
+              size: 16,
+              color: isSelected
+                  ? AppColors.tidcraftOrange
+                  : const Color(0xFF94A3B8),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontFamily: AppStyles.fontFamily,
+                  fontSize: 13.sp,
+                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                  color: isSelected ? AppColors.tidcraftOrange : textPrimary,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // --- Sub-menu Item ---
   Widget _buildSubMenuItem(
     String title,
     IconData icon,
-    Color textPrimary,
-  ) {
+    Color textPrimary, {
+    VoidCallback? onTap,
+  }) {
     final isSelected = widget.activeItem == title;
 
     return Container(
@@ -467,27 +667,34 @@ class _CustomDrawerState extends State<CustomDrawer> {
             : Colors.transparent,
         borderRadius: BorderRadius.circular(8),
       ),
-      child: ListTile(
-        contentPadding: EdgeInsets.symmetric(horizontal: 3.5.w),
-        dense: true,
-        leading: Icon(
-          icon,
-          color: isSelected ? AppColors.tidcraftOrange : textPrimary.withValues(alpha: 0.75),
-          size: 15.sp, // LARGER Sub-menu Icon
-        ),
-        title: Text(
-          title,
-          style: TextStyle(
-            fontFamily: AppStyles.fontFamily,
-            fontSize: 13.sp, // LARGER Sub-menu Font
-            fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
-            color: isSelected ? AppColors.tidcraftOrange : textPrimary,
+      child: Material(
+        color: Colors.transparent,
+        child: ListTile(
+          contentPadding: EdgeInsets.symmetric(horizontal: 3.5.w),
+          dense: true,
+          leading: Icon(
+            icon,
+            color: isSelected ? AppColors.tidcraftOrange : textPrimary.withValues(alpha: 0.75),
+            size: 15.sp, // LARGER Sub-menu Icon
           ),
+          title: Text(
+            title,
+            style: TextStyle(
+              fontFamily: AppStyles.fontFamily,
+              fontSize: 13.sp, // LARGER Sub-menu Font
+              fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
+              color: isSelected ? AppColors.tidcraftOrange : textPrimary,
+            ),
+          ),
+          onTap: () {
+            if (onTap != null) {
+              onTap();
+            } else {
+              widget.onItemSelected(title);
+              Navigator.pop(context);
+            }
+          },
         ),
-        onTap: () {
-          widget.onItemSelected(title);
-          Navigator.pop(context);
-        },
       ),
     );
   }
