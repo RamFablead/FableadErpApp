@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sizer/sizer.dart';
 import '../../../core/widgets/calculator_widget.dart';
+import '../../../widgets/custom_app_bar.dart';
+import '../../../widgets/custom_drawer.dart';
 import 'import_financers_screen.dart';
 
 /// Model representing a Financer record
@@ -547,10 +549,16 @@ class _FinancersScreenState extends State<FinancersScreen> {
   @override
   Widget build(BuildContext context) {
     final list = _filteredFinancers;
-    final topPadding = MediaQuery.of(context).padding.top;
+    final bool canGoBack = Navigator.canPop(context);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
+      appBar: CustomAppBar(
+        title: 'Financers',
+        showBackButton: canGoBack,
+        isDarkMode: false,
+      ),
+      drawer: const CustomDrawer(isDarkMode: false, activeItem: 'Financers'),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           setState(() {
@@ -568,16 +576,11 @@ class _FinancersScreenState extends State<FinancersScreen> {
       body: Stack(
         children: [
           SingleChildScrollView(
-            padding: EdgeInsets.only(
-              top: topPadding > 0 ? topPadding + 12 : 20,
-              left: 16,
-              right: 16,
-              bottom: 40,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Top Header Row: Back button + All Financers + [+ Add] + [Import]
+                // Top Header Row: Actions
                 _buildHeader(),
 
                 const SizedBox(height: 16),

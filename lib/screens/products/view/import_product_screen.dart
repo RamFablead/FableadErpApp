@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 import '../../../core/widgets/calculator_widget.dart';
+import '../../../widgets/custom_app_bar.dart';
+import '../../../widgets/custom_drawer.dart';
 
 /// A reference mapping model for displaying Excel/CSV column mapping rules.
 class _MappingRule {
@@ -279,9 +281,15 @@ class _ImportProductScreenState extends State<ImportProductScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Note: SafeArea is intentionally omitted per requirements.
+    final bool canGoBack = Navigator.canPop(context);
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
+      appBar: CustomAppBar(
+        title: 'Import Product',
+        showBackButton: canGoBack,
+        isDarkMode: false,
+      ),
+      drawer: const CustomDrawer(isDarkMode: false, activeItem: 'Products'),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           setState(() {
@@ -304,13 +312,6 @@ class _ImportProductScreenState extends State<ImportProductScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SizedBox(height: 2.h),
-
-                // Screen Title
-                _buildHeader(context),
-
-                SizedBox(height: 2.5.h),
-
                 // Main Import Card
                 _buildImportCard(context),
 
@@ -342,39 +343,7 @@ class _ImportProductScreenState extends State<ImportProductScreen> {
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (Navigator.canPop(context)) ...[
-              IconButton(
-                icon: const Icon(
-                  Icons.arrow_back_ios_new_rounded,
-                  color: Color(0xFF0F172A),
-                  size: 20,
-                ),
-                onPressed: () => Navigator.pop(context),
-                tooltip: 'Back',
-              ),
-              SizedBox(width: 1.w),
-            ],
-            Text(
-              'Import Products',
-              style: TextStyle(
-                fontSize: 16.sp,
-                fontWeight: FontWeight.w800,
-                color: const Color(0xFF0F172A),
-                letterSpacing: -0.3,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
+
 
   Widget _buildImportCard(BuildContext context) {
     return Container(

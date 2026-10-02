@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sizer/sizer.dart';
 import '../../../core/widgets/calculator_widget.dart';
+import '../../../widgets/custom_app_bar.dart';
+import '../../../widgets/custom_drawer.dart';
 import '../../products/view/add_product_screen.dart';
 
 /// Product item model for Sales & Bills
@@ -688,8 +690,15 @@ class _SalesScreenState extends State<SalesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bool canGoBack = Navigator.canPop(context);
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
+      appBar: CustomAppBar(
+        title: 'Sales & Bills',
+        showBackButton: canGoBack,
+        isDarkMode: false,
+      ),
+      drawer: const CustomDrawer(isDarkMode: false, activeItem: 'Sales'),
       body: Stack(
         children: [
           SingleChildScrollView(
@@ -697,8 +706,6 @@ class _SalesScreenState extends State<SalesScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildTopAppBar(),
-                const SizedBox(height: 12),
                 _buildBillModePills(),
                 const SizedBox(height: 10),
                 _buildGstModePills(),
@@ -765,62 +772,7 @@ class _SalesScreenState extends State<SalesScreen> {
     );
   }
 
-  // --- 1. Top Bar: Back Button, Title ("Bill 1"), Plus Circle button ---
-  Widget _buildTopAppBar() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Row(
-          children: [
-            IconButton(
-              icon: const Icon(
-                Icons.arrow_back_rounded,
-                color: Color(0xFF0F172A),
-                size: 24,
-              ),
-              onPressed: () {
-                if (Navigator.canPop(context)) {
-                  Navigator.pop(context);
-                } else {
-                  Get.back();
-                }
-              },
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-            ),
-            const SizedBox(width: 14),
-            Text(
-              'Bill 1',
-              style: TextStyle(
-                fontSize: 16.sp,
-                fontWeight: FontWeight.w800,
-                color: const Color(0xFF0F172A),
-                letterSpacing: -0.3,
-              ),
-            ),
-          ],
-        ),
 
-        // Dark Navy "+" Button in AppBar opening "Create New Bill" modal
-        Material(
-          color: const Color(0xFF1E1B4B),
-          shape: const CircleBorder(),
-          child: InkWell(
-            onTap: _showCreateNewBillDialog,
-            customBorder: const CircleBorder(),
-            child: const Padding(
-              padding: EdgeInsets.all(7),
-              child: Icon(
-                Icons.add_rounded,
-                color: Colors.white,
-                size: 20,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
 
   // --- 2. Bill Mode Filter Pills: Quotation | Advance Receipt | Rental | Sales Return ---
   Widget _buildBillModePills() {

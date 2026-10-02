@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sizer/sizer.dart';
 import '../../../core/widgets/calculator_widget.dart';
+import '../../../widgets/custom_app_bar.dart';
+import '../../../widgets/custom_drawer.dart';
 import 'add_product_category_screen.dart';
 
 /// Data model representing a product category item.
@@ -295,9 +297,15 @@ class _ProductCategoryScreenState extends State<ProductCategoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Note: SafeArea is intentionally omitted per requirements.
+    final bool canGoBack = Navigator.canPop(context);
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
+      appBar: CustomAppBar(
+        title: 'Product Categories',
+        showBackButton: canGoBack,
+        isDarkMode: false,
+      ),
+      drawer: const CustomDrawer(isDarkMode: false, activeItem: 'Categories'),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           setState(() {
@@ -320,12 +328,10 @@ class _ProductCategoryScreenState extends State<ProductCategoryScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SizedBox(height: 2.h),
-
-                // Top Header: Title & New Category Button
+                // Top Header: Actions
                 _buildHeader(context),
 
-                SizedBox(height: 2.5.h),
+                SizedBox(height: 2.h),
 
                 // Categories Table Card
                 _buildCategoriesCard(context),

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sizer/sizer.dart';
 import '../../../core/widgets/calculator_widget.dart';
+import '../../../widgets/custom_app_bar.dart';
+import '../../../widgets/custom_drawer.dart';
 import 'add_product_screen.dart';
 import 'import_product_screen.dart';
 
@@ -685,9 +687,15 @@ class _ProductScreenState extends State<ProductScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Note: SafeArea is intentionally omitted per requirements.
+    final bool canGoBack = Navigator.canPop(context);
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
+      appBar: CustomAppBar(
+        title: 'All Products',
+        showBackButton: canGoBack,
+        isDarkMode: false,
+      ),
+      drawer: const CustomDrawer(isDarkMode: false, activeItem: 'Products'),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           setState(() {
@@ -710,9 +718,7 @@ class _ProductScreenState extends State<ProductScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SizedBox(height: 1.5.h),
-
-                // 1. Header: Back Arrow + All Products + Import Products + New Product
+                // 1. Header Actions (Import Products & New Product)
                 _buildHeader(context),
 
                 SizedBox(height: 2.h),
@@ -758,77 +764,24 @@ class _ProductScreenState extends State<ProductScreen> {
     );
   }
 
-  // --- 1. Top Header ---
+  // --- 1. Top Header Actions ---
   Widget _buildHeader(BuildContext context) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      crossAxisAlignment: CrossAxisAlignment.center,
+      mainAxisAlignment: MainAxisAlignment.end,
       children: [
-        // Left: Back button + Title
-        Expanded(
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                icon: const Icon(
-                  Icons.arrow_back,
-                  color: Color(0xFF0F172A),
-                  size: 22,
-                ),
-                onPressed: () {
-                  if (Navigator.canPop(context)) {
-                    Navigator.pop(context);
-                  } else {
-                    Get.back();
-                  }
-                },
-                tooltip: 'Back',
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-              ),
-              const SizedBox(width: 8),
-              Flexible(
-                child: Text(
-                  'All Products',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 16.sp,
-                    fontWeight: FontWeight.w800,
-                    color: const Color(0xFF0F172A),
-                    letterSpacing: -0.3,
-                  ),
-                ),
-              ),
-            ],
-          ),
+        // Import Products Button
+        _buildHeaderActionButton(
+          icon: Icons.cloud_upload_outlined,
+          label: 'Import Products',
+          onTap: () => Get.to(() => const ImportProductScreen()),
         ),
-        const SizedBox(width: 6),
+        const SizedBox(width: 8),
 
-        // Right Action Buttons with scale-down fit to guarantee zero overflow
-        Flexible(
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Import Products Button
-                _buildHeaderActionButton(
-                  icon: Icons.cloud_upload_outlined,
-                  label: 'Import Products',
-                  onTap: () => Get.to(() => const ImportProductScreen()),
-                ),
-                const SizedBox(width: 6),
-
-                // New Product Button
-                _buildHeaderActionButton(
-                  icon: Icons.add_rounded,
-                  label: 'New Product',
-                  onTap: () => Get.to(() => const AddProductScreen()),
-                ),
-              ],
-            ),
-          ),
+        // New Product Button
+        _buildHeaderActionButton(
+          icon: Icons.add_rounded,
+          label: 'New Product',
+          onTap: () => Get.to(() => const AddProductScreen()),
         ),
       ],
     );
