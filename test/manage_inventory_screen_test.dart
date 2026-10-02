@@ -25,7 +25,8 @@ void main() {
     // Verify Title and New Product button
     expect(find.text('All Inventory'), findsOneWidget);
     expect(find.text('New Product'), findsOneWidget);
-    expect(find.byIcon(Icons.arrow_back), findsOneWidget);
+    // Back button removed from header
+    expect(find.byIcon(Icons.arrow_back), findsNothing);
 
     // Verify Search Box and Date pickers
     expect(find.text('Search product...'), findsOneWidget);
