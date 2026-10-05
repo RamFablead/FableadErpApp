@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 import '../core/constants/app_colors.dart';
 import '../core/constants/app_styles.dart';
+import '../core/network/api_exceptions.dart';
+import '../core/services/storage_service.dart';
+import '../services/auth_service.dart';
 import 'home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -15,10 +18,21 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _authService = AuthService();
 
   bool _isPasswordVisible = false;
   bool _rememberMe = false;
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _rememberMe = StorageService.isRememberMe();
+    if (_rememberMe) {
+      _emailController.text = StorageService.getSavedEmail();
+      _passwordController.text = StorageService.getSavedPassword();
+    }
+  }
 
   @override
   void dispose() {
@@ -27,27 +41,77 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _handleLogin() {
-    if (_formKey.currentState!.validate()) {
-      setState(() {
-        _isLoading = true;
-      });
+  Future<void> _handleLogin() async {
+    if (!_formKey.currentState!.validate()) return;
 
-      // Simulate network login request
-      Future.delayed(const Duration(seconds: 2), () {
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-          });
+    FocusScope.of(context).unfocus();
 
-          // Navigate to Home Screen
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (context) => const HomeScreen(),
-            ),
-          );
-        }
-      });
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final response = await _authService.login(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+
+      // Save remember me choice
+      await StorageService.saveRememberMe(
+        remember: _rememberMe,
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Login successful! Welcome ${response.user?.name ?? ""}',
+            style: const TextStyle(fontFamily: AppStyles.fontFamily),
+          ),
+          backgroundColor: Colors.green.shade700,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+
+      // Navigate to Home Screen
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (context) => const HomeScreen(),
+        ),
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            e.message,
+            style: const TextStyle(fontFamily: AppStyles.fontFamily),
+          ),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Something went wrong: ${e.toString()}',
+            style: const TextStyle(fontFamily: AppStyles.fontFamily),
+          ),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -137,10 +201,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     color: AppColors.textPrimary,
                   ),
                   decoration: InputDecoration(
-                    hintText: 'Enter your email',
+                    hintText: 'Enter your email (e.g. admin@gmail.com)',
                     hintStyle: TextStyle(
                       fontFamily: AppStyles.fontFamily,
-                      fontSize: 14.sp,
+                      fontSize: 13.5.sp,
                       color: AppColors.textLight,
                     ),
                     prefixIcon: Icon(
@@ -206,7 +270,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     hintText: 'Enter your password',
                     hintStyle: TextStyle(
                       fontFamily: AppStyles.fontFamily,
-                      fontSize: 14.sp,
+                      fontSize: 13.5.sp,
                       color: AppColors.textLight,
                     ),
                     prefixIcon: Icon(
@@ -352,128 +416,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
 
-                SizedBox(height: 3.h),
-
-                // Divider Row
-                Row(
-                  children: [
-                    const Expanded(child: Divider(color: AppColors.border)),
-                    Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 3.w),
-                      child: Text(
-                        'Or Sign In With',
-                        style: TextStyle(
-                          fontFamily: AppStyles.fontFamily,
-                          fontSize: 15.sp,
-                          color: AppColors.textLight,
-                        ),
-                      ),
-                    ),
-                    const Expanded(child: Divider(color: AppColors.border)),
-                  ],
-                ),
-
-                SizedBox(height: 2.5.h),
-
-                // Social Media Buttons
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildSocialButton(
-                        context,
-                        icon: Icons.g_mobiledata_rounded,
-                        label: 'Google',
-                        onTap: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Google Sign-In clicked'),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-
-
-                  ],
-                ),
-
-                SizedBox(height: 3.h),
-
-                // Footer Sign Up Prompt
-                Center(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        "Don't have an account? ",
-                        style: TextStyle(
-                          fontFamily: AppStyles.fontFamily,
-                          fontSize: 13.sp,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Navigate to Sign Up page'),
-                            ),
-                          );
-                        },
-                        child: Text(
-                          'Sign Up',
-                          style: TextStyle(
-                            fontFamily: AppStyles.fontFamily,
-                            fontSize: 13.sp,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.accent,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
                 SizedBox(height: 2.h),
               ],
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSocialButton(
-    BuildContext context, {
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        height: 6.5.h,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 24.sp, color: AppColors.textPrimary),
-            SizedBox(width: 2.w),
-            Text(
-              label,
-              style: TextStyle(
-                fontFamily: AppStyles.fontFamily,
-                fontSize: 17.sp,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
-              ),
-            ),
-          ],
         ),
       ),
     );

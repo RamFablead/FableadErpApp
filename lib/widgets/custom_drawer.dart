@@ -13,6 +13,8 @@ import '../screens/productdelivery/view/product_delivery_screen.dart';
 import '../screens/sales&bills/view/all_sales_screen.dart';
 import '../screens/accounting/view/account_ledger_screen.dart';
 import '../screens/catalogsetup/view/product_category_screen.dart';
+import '../core/services/storage_service.dart';
+import '../screens/login_screen.dart';
 
 class CustomDrawer extends StatefulWidget {
   final bool isDarkMode;
@@ -333,9 +335,36 @@ class _CustomDrawerState extends State<CustomDrawer> {
                       color: AppColors.error,
                     ),
                   ),
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.pop(context); // Go back to login
+                  onTap: () async {
+                    final bool? confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('Logout'),
+                        content: const Text('Are you sure you want to log out?'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx, false),
+                            child: const Text('Cancel'),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx, true),
+                            child: const Text('Logout',
+                                style: TextStyle(color: AppColors.error)),
+                          ),
+                        ],
+                      ),
+                    );
+
+                    if (confirm == true) {
+                      await StorageService.clearAuth();
+                      if (!context.mounted) return;
+                      Navigator.of(context).pushAndRemoveUntil(
+                        MaterialPageRoute(
+                          builder: (context) => const LoginScreen(),
+                        ),
+                        (route) => false,
+                      );
+                    }
                   },
                 ),
                 SizedBox(height: 0.5.h),
@@ -358,6 +387,11 @@ class _CustomDrawerState extends State<CustomDrawer> {
 
   // --- Drawer Header Widget (Side-by-side Photo & User Info Row Layout with LARGER FONTS) ---
   Widget _buildDrawerHeader(Color headerBg) {
+    final user = StorageService.getUser();
+    final String userName = user?.name?.isNotEmpty == true ? user!.name! : 'Main Branch';
+    final String userEmail = user?.email?.isNotEmpty == true ? user!.email! : 'admin@gmail.com';
+    final String? profileImageUrl = user?.profileImageUrl;
+
     return Container(
       width: double.infinity,
       padding: EdgeInsets.only(
@@ -372,7 +406,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Circular FE Profile Avatar
+          // Circular Profile Avatar or Image
           Container(
             width: 48,
             height: 48,
@@ -380,16 +414,36 @@ class _CustomDrawerState extends State<CustomDrawer> {
               color: AppColors.tidcraftOrange,
               shape: BoxShape.circle,
             ),
-            child: Center(
-              child: Text(
-                'FE',
-                style: TextStyle(
-                  fontFamily: AppStyles.fontFamily,
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
+            child: ClipOval(
+              child: profileImageUrl != null && profileImageUrl.isNotEmpty
+                  ? Image.network(
+                      profileImageUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Center(
+                          child: Text(
+                            userName.isNotEmpty ? userName[0].toUpperCase() : 'A',
+                            style: TextStyle(
+                              fontFamily: AppStyles.fontFamily,
+                              fontSize: 16.sp,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        );
+                      },
+                    )
+                  : Center(
+                      child: Text(
+                        userName.isNotEmpty ? userName[0].toUpperCase() : 'A',
+                        style: TextStyle(
+                          fontFamily: AppStyles.fontFamily,
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
             ),
           ),
           const SizedBox(width: 14),
@@ -401,7 +455,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  'Fablead Admin',
+                  userName,
                   style: TextStyle(
                     fontFamily: AppStyles.fontFamily,
                     fontSize: 16.5.sp, // LARGER Name Font
@@ -411,7 +465,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                 ),
                 SizedBox(height: 0.5.h),
                 Text(
-                  'admin@fableaderp.com',
+                  userEmail,
                   style: TextStyle(
                     fontFamily: AppStyles.fontFamily,
                     fontSize: 13.sp, // LARGER Email Font

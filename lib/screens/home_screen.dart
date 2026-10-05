@@ -13,7 +13,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  bool _isDarkMode = true; // Toggle between White Theme (Light) and Black Theme (Dark)
+  bool _isDarkMode = false; // Default to White Theme (Light Mode)
   int _selectedBottomNavIndex = 0;
   String _selectedDatePeriod = 'Thu, 26 Sep 2026';
   String _selectedSalesPeriod = 'This Month';
@@ -182,7 +182,7 @@ class _HomeScreenState extends State<HomeScreen> {
               borderRadius: BorderRadius.circular(10),
               border: Border.all(color: borderColor),
             ),
-            child: Row([]
+            child: Row(
               children: [
                 Icon(Icons.calendar_today_outlined,
                     color: textSecondary, size: 12.sp),

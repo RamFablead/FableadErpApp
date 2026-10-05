@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 import '../core/constants/app_colors.dart';
 import '../core/constants/app_styles.dart';
+import '../core/services/storage_service.dart';
+import 'home_screen.dart';
 import 'login_screen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -43,14 +45,18 @@ class _SplashScreenState extends State<SplashScreen>
 
     _animationController.forward();
 
-    // Navigate to Login Screen after 3 seconds
-    Timer(const Duration(seconds: 3), () {
+    // Check login state and navigate after 2.5 seconds
+    Timer(const Duration(milliseconds: 2500), () {
       if (mounted) {
+        final bool isLogged = StorageService.isLoggedIn();
+        final Widget targetScreen =
+            isLogged ? const HomeScreen() : const LoginScreen();
+
         Navigator.of(context).pushReplacement(
           PageRouteBuilder(
             transitionDuration: const Duration(milliseconds: 800),
             pageBuilder: (context, animation, secondaryAnimation) =>
-                const LoginScreen(),
+                targetScreen,
             transitionsBuilder:
                 (context, animation, secondaryAnimation, child) {
               return FadeTransition(

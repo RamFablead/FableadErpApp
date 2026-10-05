@@ -3,10 +3,12 @@ import 'package:get/get.dart';
 import 'package:sizer/sizer.dart';
 import 'core/constants/app_colors.dart';
 import 'core/constants/app_styles.dart';
+import 'core/services/storage_service.dart';
 import 'screens/splash_screen.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await StorageService.init();
   runApp(const MyApp());
 }
 
