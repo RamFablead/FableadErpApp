@@ -5,6 +5,8 @@ import 'package:sizer/sizer.dart';
 import '../../../core/widgets/calculator_widget.dart';
 import '../../../widgets/custom_app_bar.dart';
 import '../../../widgets/custom_drawer.dart';
+import '../controller/product_controller.dart';
+import '../modal/AllproductViewLIstModal.dart' as product_modal;
 
 enum ProductType {
   normal,
@@ -97,7 +99,8 @@ class GroceryPackingRowItem {
 }
 
 class AddProductScreen extends StatefulWidget {
-  const AddProductScreen({super.key});
+  final product_modal.Data? editProduct;
+  const AddProductScreen({super.key, this.editProduct});
 
   @override
   State<AddProductScreen> createState() => _AddProductScreenState();
@@ -105,6 +108,7 @@ class AddProductScreen extends StatefulWidget {
 
 class _AddProductScreenState extends State<AddProductScreen> {
   final _formKey = GlobalKey<FormState>();
+  final ProductController _productController = Get.put(ProductController());
 
   // Product Type
   ProductType _selectedProductType = ProductType.normal;
@@ -130,7 +134,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
   // Dropdown states
   String? _selectedCategory;
   String? _selectedBrand;
-  String _selectedGstOption = 'Choose GST Option';
+  String _selectedGstOption = 'Without GST';
   String? _selectedUnit;
   String _selectedRentType = 'Select';
   String _selectedStatus = 'Active';
@@ -160,12 +164,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
   ];
 
   final List<String> _gstOptions = [
-    'Choose GST Option',
-    'None (0%)',
-    'GST 5%',
-    'GST 12%',
-    'GST 18%',
-    'GST 28%',
+    'Without GST',
+    'With GST',
   ];
 
   final List<String> _units = [
@@ -219,6 +219,24 @@ class _AddProductScreenState extends State<AddProductScreen> {
     super.initState();
     _variants.add(VariantRowItem());
     _groceryPackings.add(GroceryPackingRowItem());
+
+    if (widget.editProduct != null) {
+      final p = widget.editProduct!;
+      _nameController.text = p.name ?? '';
+      _skuController.text = p.sKU ?? '';
+      _priceController.text = p.price?.toString() ?? '0';
+      _mrpController.text = p.mrp?.toString() ?? '0.00';
+      _quantityController.text = p.quantity?.toString() ?? '0';
+      _selectedCategory = p.category?.name;
+      _selectedBrand = p.brand?.name;
+      _selectedUnit = p.unit?.unitName;
+      _barcodeController.text = p.barcode ?? '';
+      if (p.gstOption == 'with_gst') {
+        _selectedGstOption = 'With GST';
+      } else {
+        _selectedGstOption = 'Without GST';
+      }
+    }
   }
 
   @override
@@ -416,20 +434,123 @@ class _AddProductScreenState extends State<AddProductScreen> {
     );
   }
 
-  void _submitForm() {
+  List<String> get _dynamicCategories {
+    final rawList = [
+      ..._productController.categoriesList
+          .map((c) => c.name ?? '')
+          .where((n) => n.isNotEmpty),
+      ..._categories,
+    ];
+    return rawList.toSet().toList();
+  }
+
+  List<String> get _dynamicBrands {
+    final rawList = [
+      ..._productController.brandsList
+          .map((b) => b.name ?? '')
+          .where((n) => n.isNotEmpty),
+      ..._brands,
+    ];
+    return rawList.toSet().toList();
+  }
+
+  List<String> get _dynamicUnits {
+    final rawList = [
+      ..._productController.unitsList
+          .map((u) => u.unitName ?? '')
+          .where((n) => n.isNotEmpty),
+      ..._units,
+    ];
+    return rawList.toSet().toList();
+  }
+
+  void _submitForm() async {
     if (_formKey.currentState?.validate() ?? false) {
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Product "${_nameController.text.trim().isEmpty ? 'New Product' : _nameController.text.trim()}" saved successfully!',
-            style: TextStyle(fontSize: 14.sp, color: Colors.white),
-          ),
-          backgroundColor: const Color(0xFF15803D),
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 2),
-        ),
-      );
+      if (_nameController.text.trim().isEmpty) {
+        Get.snackbar(
+          'Validation Error',
+          'Please enter a product name.',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: const Color(0xFFDC2626),
+          colorText: Colors.white,
+        );
+        return;
+      }
+
+      int categoryId = 1;
+      if (_selectedCategory != null) {
+        final cat = _productController.categoriesList.firstWhereOrNull(
+          (c) => c.name?.toLowerCase() == _selectedCategory?.toLowerCase(),
+        );
+        if (cat?.id != null) categoryId = cat!.id!;
+      }
+
+      int brandId = 1;
+      if (_selectedBrand != null) {
+        final br = _productController.brandsList.firstWhereOrNull(
+          (b) => b.name?.toLowerCase() == _selectedBrand?.toLowerCase(),
+        );
+        if (br?.id != null) brandId = br!.id!;
+      }
+
+      int unitId = 1;
+      if (_selectedUnit != null) {
+        final un = _productController.unitsList.firstWhereOrNull(
+          (u) => u.unitName?.toLowerCase() == _selectedUnit?.toLowerCase(),
+        );
+        if (un?.id != null) unitId = un!.id!;
+      }
+
+      final double price = double.tryParse(_priceController.text.trim()) ?? 0.0;
+      final double mrp = double.tryParse(_mrpController.text.trim()) ?? 0.0;
+      final double purchasePrice = double.tryParse(_purchasePriceController.text.trim()) ?? 0.0;
+      final int quantity = int.tryParse(_quantityController.text.trim()) ?? 0;
+      final String formattedGstOption =
+          (_selectedGstOption == 'With GST' || _selectedGstOption == 'with_gst')
+              ? 'with_gst'
+              : 'without_gst';
+
+      bool success = false;
+      if (widget.editProduct != null) {
+        success = await _productController.updateProduct(
+          id: widget.editProduct!.id!,
+          name: _nameController.text.trim(),
+          categoryId: categoryId,
+          brandId: brandId,
+          unitId: unitId,
+          price: price,
+          mrp: mrp,
+          purchasePrice: purchasePrice,
+          quantity: quantity,
+          sku: _skuController.text.trim().isEmpty ? 'SKU-001' : _skuController.text.trim(),
+          itemType: _selectedProductType.name,
+          status: _selectedStatus.toLowerCase(),
+          availability: _selectedStock == 'In Stock' ? 'in_stock' : 'out_of_stock',
+          gstOption: formattedGstOption,
+          branchId: 1,
+        );
+      } else {
+        success = await _productController.createProduct(
+          name: _nameController.text.trim(),
+          categoryId: categoryId,
+          brandId: brandId,
+          unitId: unitId,
+          price: price,
+          mrp: mrp,
+          purchasePrice: purchasePrice,
+          quantity: quantity,
+          sku: _skuController.text.trim().isEmpty ? 'SKU-001' : _skuController.text.trim(),
+          itemType: _selectedProductType.name,
+          status: _selectedStatus.toLowerCase(),
+          availability: _selectedStock == 'In Stock' ? 'in_stock' : 'out_of_stock',
+          gstOption: formattedGstOption,
+          branchId: 1,
+        );
+      }
+
+      if (success && mounted) {
+        Navigator.pop(context);
+      }
     }
   }
 
@@ -693,12 +814,12 @@ class _AddProductScreenState extends State<AddProductScreen> {
                       ),
                     ),
                     const SizedBox(height: 6),
-                    _buildDropdownField(
+                    Obx(() => _buildDropdownField(
                       value: _selectedCategory,
                       hintText: 'Select or Add Category',
-                      items: _categories,
+                      items: _dynamicCategories,
                       onChanged: (val) => setState(() => _selectedCategory = val),
-                    ),
+                    )),
                   ],
                 ),
               ),
@@ -727,12 +848,12 @@ class _AddProductScreenState extends State<AddProductScreen> {
                       ),
                     ),
                     const SizedBox(height: 6),
-                    _buildDropdownField(
+                    Obx(() => _buildDropdownField(
                       value: _selectedBrand,
                       hintText: 'Select or Add Brand',
-                      items: _brands,
+                      items: _dynamicBrands,
                       onChanged: (val) => setState(() => _selectedBrand = val),
-                    ),
+                    )),
                   ],
                 ),
               ),
@@ -833,12 +954,12 @@ class _AddProductScreenState extends State<AddProductScreen> {
                       ),
                     ),
                     const SizedBox(height: 6),
-                    _buildDropdownField(
+                    Obx(() => _buildDropdownField(
                       value: _selectedUnit,
                       hintText: 'Select or Add Unit',
-                      items: _units,
+                      items: _dynamicUnits,
                       onChanged: (val) => setState(() => _selectedUnit = val),
-                    ),
+                    )),
                   ],
                 ),
               ),
@@ -1257,6 +1378,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
     required List<String> items,
     required ValueChanged<String?> onChanged,
   }) {
+    final uniqueItems = items.toSet().toList();
+    final selectValue = uniqueItems.contains(value) ? value : null;
+
     return Container(
       height: 44,
       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -1267,7 +1391,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
-          value: items.contains(value) ? value : null,
+          value: selectValue,
           hint: Text(
             hintText,
             maxLines: 1,
@@ -1287,7 +1411,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
             fontSize: 14.sp,
             color: const Color(0xFF0F172A),
           ),
-          items: items.map((String itm) {
+          items: uniqueItems.map((String itm) {
             return DropdownMenuItem<String>(
               value: itm,
               child: Text(
@@ -1947,6 +2071,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
     required List<String> items,
     required ValueChanged<String?> onChanged,
   }) {
+    final uniqueItems = items.toSet().toList();
+    final selectValue = uniqueItems.contains(value) ? value : (uniqueItems.isNotEmpty ? uniqueItems.first : null);
+
     return Container(
       height: 34,
       padding: const EdgeInsets.symmetric(horizontal: 6),
@@ -1957,7 +2084,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
-          value: items.contains(value) ? value : items.first,
+          value: selectValue,
           isExpanded: true,
           icon: const Icon(
             Icons.keyboard_arrow_down_rounded,
@@ -1968,7 +2095,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
             fontSize: 13.sp,
             color: const Color(0xFF0F172A),
           ),
-          items: items.map((String itm) {
+          items: uniqueItems.map((String itm) {
             return DropdownMenuItem<String>(
               value: itm,
               child: Text(

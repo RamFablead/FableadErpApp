@@ -9,6 +9,15 @@ class ApiConstants {
   static const String getAllCategoryEndpoint = '/api/getAllCategory';
   static const String getOrdersEndpoint = '/api/get_orders';
   
+  // Product & Catalog Endpoints
+  static const String getAllBrands = '/api/getAllBrand';
+  static const String getUnits = '/api/units';
+  static const String getAllCategories = '/api/getAllCategory';
+  static const String createProduct = '/api/createProduct';
+  static const String updateProduct = '/api/updateProduct';
+  static const String deleteProduct = '/api/deleteProduct';
+  static const String getAllProducts = '/api/getAllProduct';
+  
   // Storage Keys
   static const String keyToken = 'auth_token';
   static const String keyUserData = 'user_data';
