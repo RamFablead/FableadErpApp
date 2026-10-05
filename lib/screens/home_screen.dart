@@ -9,6 +9,7 @@ import '../widgets/custom_drawer.dart';
 import 'products/view/product_screen.dart';
 import 'profile_screen.dart';
 import 'sales&bills/view/all_sales_screen.dart';
+import 'sales&bills/view/sales_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -95,23 +96,27 @@ class _HomeScreenState extends State<HomeScreen> {
               _buildGreetingAndDateRow(textPrimary, textSecondary, cardBg, borderColor),
               SizedBox(height: 2.h),
 
-              // 2. Top 2x2 Metric Grid (Total Sales, Purchases, Customers, Vendors - BALANCED ELEGANT FONTS)
+              // 2. Main Quick Navigation Modules (Products, Sales & Bills, Profile)
+              _buildMainModulesGrid(cardBg, cardBgLight, borderColor, textPrimary, textSecondary),
+              SizedBox(height: 2.h),
+
+              // 3. Top 2x2 Metric Grid Cards
               _buildTop2x2MetricGrid(cardBg, borderColor, textPrimary, textSecondary),
               SizedBox(height: 2.h),
 
-              // 3. Sales & Purchases Target Progress Card (BALANCED FONTS)
+              // 4. Sales & Purchases Target Progress Card (BALANCED FONTS)
               _buildSalesAndPurchasesTargetCard(cardBg, cardBgLight, borderColor, textPrimary, textSecondary),
               SizedBox(height: 2.h),
 
-              // 4. Top 5 Sales (Products) Card (BALANCED FONTS)
+              // 5. Top 5 Sales (Products) Card (BALANCED FONTS)
               _buildTop5ProductsCard(cardBg, cardBgLight, borderColor, textPrimary, textSecondary),
               SizedBox(height: 2.h),
 
-              // 5. Sales Trend Line Chart Card (BALANCED FONTS & PAINTER)
+              // 6. Sales Trend Line Chart Card (BALANCED FONTS & PAINTER)
               _buildSalesTrendChartCard(cardBg, cardBgLight, borderColor, textPrimary, textSecondary),
               SizedBox(height: 2.h),
 
-              // 6. Recent Sales & Recent Purchases Cards (BALANCED FONTS)
+              // 7. Recent Sales Cards (BALANCED FONTS)
               _buildRecentTransactionsSection(cardBg, cardBgLight, borderColor, textPrimary, textSecondary),
               SizedBox(height: 2.5.h),
             ],
@@ -221,6 +226,134 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // --- Quick Access Main Navigation Modules Grid ---
+  Widget _buildMainModulesGrid(
+    Color cardBg,
+    Color cardBgLight,
+    Color borderColor,
+    Color textPrimary,
+    Color textSecondary,
+  ) {
+    final modules = [
+      {
+        'title': 'Products',
+        'subtitle': 'Manage Products',
+        'icon': Icons.inventory_2_rounded,
+        'color': const Color(0xFFFF6B2C),
+        'bg': const Color(0xFFFFF4EE),
+        'onTap': () => Get.to(() => const ProductScreen()),
+      },
+      {
+        'title': 'Sales & Bills',
+        'subtitle': 'Manage Invoices',
+        'icon': Icons.receipt_long_rounded,
+        'color': const Color(0xFF16A34A),
+        'bg': const Color(0xFFF0FDF4),
+        'onTap': () => Get.to(() => const AllSalesScreen()),
+      },
+      {
+        'title': 'Profile',
+        'subtitle': 'Account Info',
+        'icon': Icons.person_rounded,
+        'color': const Color(0xFF2563EB),
+        'bg': const Color(0xFFEFF6FF),
+        'onTap': () => Get.to(() => const ProfileScreen()),
+      },
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: EdgeInsets.only(bottom: 1.h),
+          child: Text(
+            'QUICK ACCESS MODULES',
+            style: TextStyle(
+              fontFamily: AppStyles.fontFamily,
+              fontSize: 10.5.sp,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.1,
+              color: textSecondary,
+            ),
+          ),
+        ),
+        Row(
+          children: modules.map((mod) {
+            final color = mod['color'] as Color;
+            final bg = mod['bg'] as Color;
+
+            return Expanded(
+              child: GestureDetector(
+                onTap: mod['onTap'] as VoidCallback,
+                child: Container(
+                  margin: EdgeInsets.only(right: mod == modules.last ? 0 : 2.w),
+                  padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 1.5.h),
+                  decoration: BoxDecoration(
+                    color: _isDarkMode ? cardBg : bg,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: _isDarkMode ? borderColor : color.withValues(alpha: 0.3),
+                      width: 1.2,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: color.withValues(alpha: 0.1),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: EdgeInsets.all(2.w),
+                        decoration: BoxDecoration(
+                          color: color,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          mod['icon'] as IconData,
+                          color: Colors.white,
+                          size: 16.sp,
+                        ),
+                      ),
+                      SizedBox(height: 1.h),
+                      Text(
+                        mod['title'] as String,
+                        style: TextStyle(
+                          fontFamily: AppStyles.fontFamily,
+                          fontSize: 11.5.sp,
+                          fontWeight: FontWeight.w800,
+                          color: textPrimary,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      SizedBox(height: 0.3.h),
+                      Text(
+                        mod['subtitle'] as String,
+                        style: TextStyle(
+                          fontFamily: AppStyles.fontFamily,
+                          fontSize: 9.sp,
+                          fontWeight: FontWeight.w500,
+                          color: textSecondary,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
   // --- 3. Top 2x2 Metric Grid Cards (BALANCED CLEAN FONTS) ---
   Widget _buildTop2x2MetricGrid(
     Color cardBg,
@@ -241,51 +374,55 @@ class _HomeScreenState extends State<HomeScreen> {
           title: 'Total Sales',
           value: '₹ 4,82,650',
           growthText: '↑ 12% vs last week',
-          icon: Icons.shopping_cart_rounded,
+          icon: Icons.receipt_long_rounded,
           iconBgColor: AppColors.orangeAccent,
           cardBg: cardBg,
           borderColor: borderColor,
           textPrimary: textPrimary,
           textSecondary: textSecondary,
+          onTap: () => Get.to(() => const AllSalesScreen()),
         ),
 
-        // 2. Purchases Card
+        // 2. All Products Card
         _buildMetricGridCard(
-          title: 'Purchases',
-          value: '₹ 2,31,480',
-          growthText: '↑ 8% vs last week',
-          icon: Icons.shopping_bag_rounded,
+          title: 'All Products',
+          value: '1,420 Items',
+          growthText: '↑ Active Catalog',
+          icon: Icons.inventory_2_rounded,
           iconBgColor: AppColors.tidcraftGreen,
           cardBg: cardBg,
           borderColor: borderColor,
           textPrimary: textPrimary,
           textSecondary: textSecondary,
+          onTap: () => Get.to(() => const ProductScreen()),
         ),
 
-        // 3. Customers Card
+        // 3. New Bill / Sale Card
         _buildMetricGridCard(
-          title: 'Customers',
-          value: '1,248',
-          growthText: '↑ 15% vs last week',
-          icon: Icons.groups_rounded,
+          title: 'Create Bill',
+          value: 'New Invoice',
+          growthText: 'Quick Billing',
+          icon: Icons.add_shopping_cart_rounded,
           iconBgColor: AppColors.tidcraftPurple,
           cardBg: cardBg,
           borderColor: borderColor,
           textPrimary: textPrimary,
           textSecondary: textSecondary,
+          onTap: () => Get.to(() => const SalesScreen()),
         ),
 
-        // 4. Vendors Card
+        // 4. Account Profile Card
         _buildMetricGridCard(
-          title: 'Vendors',
-          value: '356',
-          growthText: '↑ 6% vs last week',
-          icon: Icons.storefront_rounded,
+          title: 'Profile & Info',
+          value: 'Main Branch',
+          growthText: 'View Settings',
+          icon: Icons.person_rounded,
           iconBgColor: AppColors.tidcraftOrange,
           cardBg: cardBg,
           borderColor: borderColor,
           textPrimary: textPrimary,
           textSecondary: textSecondary,
+          onTap: () => Get.to(() => const ProfileScreen()),
         ),
       ],
     );
@@ -301,79 +438,84 @@ class _HomeScreenState extends State<HomeScreen> {
     required Color borderColor,
     required Color textPrimary,
     required Color textSecondary,
+    VoidCallback? onTap,
   }) {
-    return Container(
-      padding: EdgeInsets.all(3.w),
-      decoration: BoxDecoration(
-        color: cardBg,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: borderColor),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: _isDarkMode ? 0.15 : 0.03),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          // Icon Box & Title Row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: EdgeInsets.all(1.8.w),
-                decoration: BoxDecoration(
-                  color: iconBgColor,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(icon, color: Colors.white, size: 14.sp),
-              ),
-              Row(
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontFamily: AppStyles.fontFamily,
-                      fontSize: 11.sp, // BALANCED PERFECT FONT
-                      fontWeight: FontWeight.w600,
-                      color: textSecondary,
-                    ),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: EdgeInsets.all(3.w),
+        decoration: BoxDecoration(
+          color: cardBg,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: borderColor),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: _isDarkMode ? 0.15 : 0.03),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            // Icon Box & Title Row
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: EdgeInsets.all(1.8.w),
+                  decoration: BoxDecoration(
+                    color: iconBgColor,
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  SizedBox(width: 0.5.w),
-                  Icon(Icons.chevron_right_rounded,
-                      color: textSecondary, size: 13.sp),
-                ],
+                  child: Icon(icon, color: Colors.white, size: 14.sp),
+                ),
+                Row(
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontFamily: AppStyles.fontFamily,
+                        fontSize: 11.sp, // BALANCED PERFECT FONT
+                        fontWeight: FontWeight.w600,
+                        color: textSecondary,
+                      ),
+                    ),
+                    SizedBox(width: 0.5.w),
+                    Icon(Icons.chevron_right_rounded,
+                        color: textSecondary, size: 13.sp),
+                  ],
+                ),
+              ],
+            ),
+
+            // Big Bold Value Text
+            Text(
+              value,
+              style: TextStyle(
+                fontFamily: AppStyles.fontFamily,
+                fontSize: 15.sp, // BALANCED PERFECT BOLD VALUE
+                fontWeight: FontWeight.w800,
+                color: textPrimary,
+                letterSpacing: 0.3,
               ),
-            ],
-          ),
-
-          // Big Bold Value Text
-          Text(
-            value,
-            style: TextStyle(
-              fontFamily: AppStyles.fontFamily,
-              fontSize: 16.sp, // BALANCED PERFECT BOLD VALUE
-              fontWeight: FontWeight.w800,
-              color: textPrimary,
-              letterSpacing: 0.3,
             ),
-          ),
 
-          // Growth Badge Indicator
-          Text(
-            growthText,
-            style: TextStyle(
-              fontFamily: AppStyles.fontFamily,
-              fontSize: 9.5.sp, // BALANCED CRISP FONT
-              fontWeight: FontWeight.w600,
-              color: AppColors.tidcraftGreen,
+            // Growth Badge Indicator
+            Text(
+              growthText,
+              style: TextStyle(
+                fontFamily: AppStyles.fontFamily,
+                fontSize: 9.5.sp, // BALANCED CRISP FONT
+                fontWeight: FontWeight.w600,
+                color: AppColors.tidcraftGreen,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

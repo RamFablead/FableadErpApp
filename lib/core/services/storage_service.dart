@@ -30,6 +30,11 @@ class StorageService {
     await prefs.setBool(ApiConstants.keyIsLoggedIn, true);
   }
 
+  /// Update User Data
+  static Future<void> saveUserData(UserModel user) async {
+    await prefs.setString(ApiConstants.keyUserData, jsonEncode(user.toJson()));
+  }
+
   /// Get Stored Auth Token
   static String? getToken() {
     return _prefs?.getString(ApiConstants.keyToken);
