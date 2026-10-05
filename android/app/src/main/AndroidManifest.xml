@@ -14,7 +14,7 @@
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN"/>
 
     <application
-        android:label="Fablead ERP"
+        android:label="Fablead ERP App"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

@@ -20,7 +20,7 @@ class MyApp extends StatelessWidget {
     return Sizer(
       builder: (context, orientation, deviceType) {
         return GetMaterialApp(
-          title: 'Fablead ERP',
+          title: 'Fablead ERP App',
           debugShowCheckedModeBanner: false,
           theme: ThemeData(
             useMaterial3: true,

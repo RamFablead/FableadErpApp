@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Fablead ERP</string>
+	<string>Fablead ERP App</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -15,7 +15,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>Fablead ERP</string>
+	<string>Fablead ERP App</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -27,25 +27,25 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSBluetoothAlwaysUsageDescription</key>
-	<string>Fablead ERP requires Bluetooth access to connect to thermal receipt printers and wireless barcode scanners.</string>
+	<string>Fablead ERP App requires Bluetooth access to connect to thermal receipt printers and wireless barcode scanners.</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>
-	<string>Fablead ERP requires Bluetooth access to connect to external POS devices and receipt printers.</string>
+	<string>Fablead ERP App requires Bluetooth access to connect to external POS devices and receipt printers.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Fablead ERP requires access to your camera to scan product barcodes, QR codes, and take photos for invoice attachments.</string>
+	<string>Fablead ERP App requires access to your camera to scan product barcodes, QR codes, and take photos for invoice attachments.</string>
 	<key>NSContactsUsageDescription</key>
-	<string>Fablead ERP requires access to contacts to easily import and select customer and vendor phone numbers.</string>
+	<string>Fablead ERP App requires access to contacts to easily import and select customer and vendor phone numbers.</string>
 	<key>NSFaceIDUsageDescription</key>
-	<string>Fablead ERP uses Face ID / Touch ID for biometric login and secure app authentication.</string>
+	<string>Fablead ERP App uses Face ID / Touch ID for biometric login and secure app authentication.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Fablead ERP requires location access for field staff location tracking during active working hours.</string>
+	<string>Fablead ERP App requires location access for field staff location tracking during active working hours.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Fablead ERP requires location access to verify staff attendance check-ins and field delivery routes.</string>
+	<string>Fablead ERP App requires location access to verify staff attendance check-ins and field delivery routes.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Fablead ERP requires access to your microphone for voice notes and customer support calls.</string>
+	<string>Fablead ERP App requires access to your microphone for voice notes and customer support calls.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Fablead ERP requires permission to save generated invoice PDFs, receipts, and reports to your photo gallery.</string>
+	<string>Fablead ERP App requires permission to save generated invoice PDFs, receipts, and reports to your photo gallery.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Fablead ERP requires access to your photo library to select and upload product images and document attachments.</string>
+	<string>Fablead ERP App requires access to your photo library to select and upload product images and document attachments.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
