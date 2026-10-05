@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import '../constants/api_constants.dart';
@@ -36,7 +37,13 @@ class ApiClient {
           if (kDebugMode) {
             debugPrint('🌐 [DIO REQUEST] ${options.method} -> ${options.uri}');
             if (options.data != null) {
-              debugPrint('📦 [DIO BODY] ${options.data}');
+              try {
+                final pretty =
+                    const JsonEncoder.withIndent('  ').convert(options.data);
+                debugPrint('📦 [DIO JSON BODY]:\n$pretty');
+              } catch (_) {
+                debugPrint('📦 [DIO BODY] ${options.data}');
+              }
             }
           }
           return handler.next(options);
@@ -46,6 +53,15 @@ class ApiClient {
             debugPrint(
               '✅ [DIO RESPONSE] ${response.statusCode} <- ${response.requestOptions.uri}',
             );
+            if (response.data != null) {
+              try {
+                final pretty =
+                    const JsonEncoder.withIndent('  ').convert(response.data);
+                debugPrint('📥 [DIO JSON RESPONSE]:\n$pretty');
+              } catch (_) {
+                debugPrint('📥 [DIO RESPONSE] ${response.data}');
+              }
+            }
           }
           return handler.next(response);
         },
@@ -54,7 +70,15 @@ class ApiClient {
             debugPrint(
               '❌ [DIO ERROR] ${error.response?.statusCode} <- ${error.requestOptions.uri}',
             );
-            debugPrint('❌ [DIO ERROR DATA] ${error.response?.data}');
+            if (error.response?.data != null) {
+              try {
+                final pretty = const JsonEncoder.withIndent('  ')
+                    .convert(error.response?.data);
+                debugPrint('❌ [DIO ERROR DATA]:\n$pretty');
+              } catch (_) {
+                debugPrint('❌ [DIO ERROR DATA] ${error.response?.data}');
+              }
+            }
           }
           return handler.next(error);
         },

@@ -1,14 +1,21 @@
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sizer/sizer.dart';
 import '../../../core/widgets/calculator_widget.dart';
 import '../../../models/category_model.dart';
+import '../../../models/customer_model.dart';
+import '../../../models/order_model.dart';
 import '../../../models/product_model.dart';
 import '../../../services/category_service.dart';
+import '../../../services/customer_service.dart';
+import '../../../services/order_service.dart';
 import '../../../services/product_service.dart';
 import '../../../widgets/custom_app_bar.dart';
 import '../../../widgets/custom_drawer.dart';
 import '../../products/view/add_product_screen.dart';
+import 'all_sales_screen.dart';
 
 /// Product item model for Sales & Bills
 class SalesProductItem {
@@ -94,6 +101,27 @@ class DashedBorderPainter extends CustomPainter {
   bool shouldRepaint(covariant DashedBorderPainter oldDelegate) => false;
 }
 
+/// Data model for dynamic Other Charges rows (Screenshot 2)
+class OtherChargeItem {
+  final TextEditingController nameController;
+  final TextEditingController amountController;
+
+  OtherChargeItem({String name = '', double? amount})
+      : nameController = TextEditingController(text: name),
+        amountController = TextEditingController(
+            text: amount != null && amount > 0
+                ? amount.toStringAsFixed(2)
+                : '');
+
+  String get name => nameController.text.trim();
+  double get amount => double.tryParse(amountController.text.trim()) ?? 0.0;
+
+  void dispose() {
+    nameController.dispose();
+    amountController.dispose();
+  }
+}
+
 /// Active cart item model with editable fields matching ERP billing card design
 class SalesCartItem {
   final ProductItemModel product;
@@ -127,7 +155,7 @@ class SalesCartItem {
 
   double get subtotal => price * quantity;
 
-  double get finalTotal {
+  double get netAmount {
     double total = subtotal;
     if (discountAmount > 0) {
       total -= discountAmount;
@@ -136,6 +164,14 @@ class SalesCartItem {
     }
     return total > 0 ? total : 0.0;
   }
+
+  double get finalTotal => netAmount;
+
+  // Proper GST Calculations (18% Total = 9% CGST + 9% SGST)
+  double get cgstAmount => netAmount * 0.09;
+  double get sgstAmount => netAmount * 0.09;
+  double get gstTotal => netAmount * 0.18;
+  double get withGstTotal => netAmount + gstTotal;
 
   void dispose() {
     descController.dispose();
@@ -179,25 +215,41 @@ class _SalesScreenState extends State<SalesScreen> {
 
   // Toggle between Horizontal Product Cards and Category Grid View (Screenshot 4)
   bool _isCategoryGridView = false;
+  bool _isBottomPanelExpanded = true;
 
-  // Search & Calculator
+  // Search
   final TextEditingController _searchController = TextEditingController();
-  bool _isCalculatorOpen = false;
 
-  // Customer Details
+  // Customer Details (Live API integration via CustomerService)
+  final CustomerService _customerService = CustomerService();
+  bool _isLoadingCustomers = false;
+  String? _customersError;
   String _selectedCustomer = 'Select Customer';
+  CustomerItemModel? _selectedCustomerModel;
+  String? _selectedCustomerId;
   final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _customerGstController = TextEditingController();
   DateTime _orderDate = DateTime(2026, 10, 2);
   String _assignedStaff = 'Select Staff (Optional)';
   String _orderType = 'Self Pickup';
 
-  // Charges, Discounts, & Deposit
+  List<CustomerItemModel> _liveCustomers = [
+    CustomerItemModel(id: 1, name: 'Default Customer', phone: '9876543210'),
+    CustomerItemModel(id: 104, name: 'damodar', phone: '0000078454'),
+    CustomerItemModel(id: 103, name: 'disha lakhani', phone: '9824781385', city: 'surat'),
+    CustomerItemModel(id: 92, name: 'VATSAL PATEL', phone: '8899777445', city: 'Surat'),
+    CustomerItemModel(id: 90, name: 'Hiren Pravinbhai Chandaliya', phone: '9428618514', city: 'Surat'),
+  ];
+
+  // Charges, Discounts, Remarks & Other Charges
   final TextEditingController _deliveryCostController = TextEditingController();
   final TextEditingController _depositController = TextEditingController();
   final TextEditingController _tdsPercentController =
       TextEditingController(text: '0');
   final TextEditingController _discountPercentController =
       TextEditingController(text: '0');
+  final TextEditingController _remarksController = TextEditingController();
+  final List<OtherChargeItem> _otherCharges = [];
 
   // Product Inventory Data (Live API integration via ProductService)
   final ProductService _productService = ProductService();
@@ -241,11 +293,41 @@ class _SalesScreenState extends State<SalesScreen> {
   String? _categoriesError;
   List<CategoryItemModel> _liveCategories = [];
 
+  // Order Placement (Live API integration via OrderService)
+  final OrderService _orderService = OrderService();
+  bool _isSubmittingOrder = false;
+
   @override
   void initState() {
     super.initState();
     _fetchProducts();
     _fetchCategories();
+    _fetchCustomers();
+  }
+
+  Future<void> _fetchCustomers() async {
+    setState(() {
+      _isLoadingCustomers = true;
+      _customersError = null;
+    });
+    try {
+      final list = await _customerService.getAllCustomers();
+      if (mounted) {
+        setState(() {
+          if (list.isNotEmpty) {
+            _liveCustomers = list;
+          }
+          _isLoadingCustomers = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoadingCustomers = false;
+          _customersError = e.toString();
+        });
+      }
+    }
   }
 
   Future<void> _fetchCategories() async {
@@ -421,8 +503,13 @@ class _SalesScreenState extends State<SalesScreen> {
     for (final it in _cartItems.values) {
       it.dispose();
     }
+    for (final c in _otherCharges) {
+      c.dispose();
+    }
     _searchController.dispose();
     _phoneController.dispose();
+    _customerGstController.dispose();
+    _remarksController.dispose();
     _deliveryCostController.dispose();
     _depositController.dispose();
     _tdsPercentController.dispose();
@@ -437,10 +524,22 @@ class _SalesScreenState extends State<SalesScreen> {
   double get _productSubtotal {
     double total = 0.0;
     _cartItems.forEach((id, item) {
-      total += item.finalTotal;
+      total += item.netAmount;
     });
     return total;
   }
+
+  double get _totalGstAmount {
+    if (_selectedGstMode != 'With GST') return 0.0;
+    double total = 0.0;
+    _cartItems.forEach((id, item) {
+      total += item.gstTotal;
+    });
+    return total;
+  }
+
+  double get _otherChargesTotal =>
+      _otherCharges.fold(0.0, (sum, c) => sum + c.amount);
 
   double get _deliveryCost =>
       double.tryParse(_deliveryCostController.text) ?? 0.0;
@@ -455,11 +554,19 @@ class _SalesScreenState extends State<SalesScreen> {
     return (_productSubtotal * pct) / 100;
   }
 
-  double get _grandTotal {
-    double total = _productSubtotal + _deliveryCost - _discountAmount + _tdsAmount;
+  double get _subtotalAmount {
+    double sub = _productSubtotal +
+        _deliveryCost +
+        _otherChargesTotal -
+        _discountAmount;
     if (_selectedGstMode == 'With GST') {
-      total += (_productSubtotal * 0.18); // 18% GST calculation
+      sub += _totalGstAmount;
     }
+    return sub > 0 ? sub : 0.0;
+  }
+
+  double get _grandTotal {
+    double total = _subtotalAmount - _tdsAmount;
     return total > 0 ? total : 0.0;
   }
 
@@ -546,7 +653,15 @@ class _SalesScreenState extends State<SalesScreen> {
       _cartItems.clear();
       _cart.clear();
       _selectedCustomer = 'Select Customer';
+      _selectedCustomerModel = null;
+      _selectedCustomerId = null;
       _phoneController.clear();
+      _customerGstController.clear();
+      _remarksController.clear();
+      for (final c in _otherCharges) {
+        c.dispose();
+      }
+      _otherCharges.clear();
       _deliveryCostController.clear();
       _depositController.clear();
       _tdsPercentController.text = '0';
@@ -871,12 +986,14 @@ class _SalesScreenState extends State<SalesScreen> {
                         final name = nameCtl.text.trim();
                         final phone = phoneCtl.text.trim();
                         if (name.isNotEmpty) {
+                          final newCust = CustomerItemModel(
+                            id: DateTime.now().millisecondsSinceEpoch % 100000,
+                            name: name,
+                            phone: phone.isNotEmpty ? phone : null,
+                          );
                           setState(() {
-                            _customerList.add(name);
-                            _selectedCustomer = name;
-                            if (phone.isNotEmpty) {
-                              _phoneController.text = phone;
-                            }
+                            _liveCustomers.insert(0, newCust);
+                            _selectCustomer(newCust);
                           });
                           Navigator.pop(ctx);
                           Get.snackbar(
@@ -908,6 +1025,523 @@ class _SalesScreenState extends State<SalesScreen> {
     );
   }
 
+  void _selectCustomer(CustomerItemModel cust) {
+    setState(() {
+      _selectedCustomer = cust.name;
+      _selectedCustomerModel = cust;
+      _selectedCustomerId = cust.id.toString();
+      if (cust.phone != null && cust.phone!.trim().isNotEmpty) {
+        _phoneController.text = cust.phone!.trim();
+      }
+      if (cust.gstNumber != null && cust.gstNumber!.trim().isNotEmpty) {
+        _customerGstController.text = cust.gstNumber!.trim();
+      }
+    });
+  }
+
+  void _handleCustomerSearchSubmit(
+      String query, List<CustomerItemModel> currentFiltered) {
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) return;
+
+    // Check if exact match exists in _liveCustomers
+    CustomerItemModel? exact;
+    for (final c in _liveCustomers) {
+      if (c.name.trim().toLowerCase() == trimmed.toLowerCase()) {
+        exact = c;
+        break;
+      }
+    }
+    if (exact != null) {
+      _selectCustomer(exact);
+      return;
+    }
+
+    // Check if only 1 match in current filtered list
+    if (currentFiltered.length == 1) {
+      _selectCustomer(currentFiltered.first);
+      return;
+    }
+
+    // Otherwise, create and select new customer
+    final newCust = CustomerItemModel(
+      id: DateTime.now().millisecondsSinceEpoch % 100000,
+      name: trimmed,
+      phone: _phoneController.text.trim().isNotEmpty
+          ? _phoneController.text.trim()
+          : null,
+    );
+
+    setState(() {
+      _liveCustomers.insert(0, newCust);
+      _selectCustomer(newCust);
+    });
+
+    Get.snackbar(
+      'Customer Added',
+      'Added "$trimmed" to customer list',
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: const Color(0xFF0F172A),
+      colorText: Colors.white,
+      duration: const Duration(seconds: 2),
+      margin: const EdgeInsets.all(12),
+    );
+  }
+
+  void _showCustomerSearchPicker() {
+    final searchController = TextEditingController();
+    String query = '';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final trimmed = query.trim().toLowerCase();
+            final filtered = _liveCustomers.where((c) {
+              if (trimmed.isEmpty) return true;
+              final nameMatch = c.name.toLowerCase().contains(trimmed);
+              final phoneMatch = c.phone != null && c.phone!.contains(trimmed);
+              final codeMatch = c.customerCode != null &&
+                  c.customerCode!.toLowerCase().contains(trimmed);
+              final cityMatch =
+                  c.city != null && c.city!.toLowerCase().contains(trimmed);
+              return nameMatch || phoneMatch || codeMatch || cityMatch;
+            }).toList();
+
+            bool hasExactMatch = false;
+            for (final c in _liveCustomers) {
+              if (c.name.trim().toLowerCase() == trimmed) {
+                hasExactMatch = true;
+                break;
+              }
+            }
+
+            return Material(
+              color: Colors.white,
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(20)),
+              clipBehavior: Clip.antiAlias,
+              child: Container(
+                height: MediaQuery.of(context).size.height * 0.80,
+                padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(context).viewInsets.bottom,
+                ),
+                child: Column(
+                  children: [
+                    // Drag Handle
+                    Center(
+                      child: Container(
+                        margin: const EdgeInsets.only(top: 10, bottom: 6),
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE2E8F0),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+
+                    // Header
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.people_alt_rounded,
+                                  color: Color(0xFFEA580C),
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    'Select Customer',
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 15.sp,
+                                      fontWeight: FontWeight.w700,
+                                      color: const Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                ),
+                                if (_liveCustomers.isNotEmpty) ...[
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFFF7ED),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                          color: const Color(0xFFFED7AA)),
+                                    ),
+                                    child: Text(
+                                      '${_liveCustomers.length}',
+                                      style: TextStyle(
+                                        fontSize: 10.sp,
+                                        fontWeight: FontWeight.w700,
+                                        color: const Color(0xFFEA580C),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              InkWell(
+                                onTap: () {
+                                  Navigator.pop(sheetCtx);
+                                  _showAddCustomerDialog();
+                                },
+                                borderRadius: BorderRadius.circular(8),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 5),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFFF7ED),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                        color: const Color(0xFFFED7AA)),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.person_add_rounded,
+                                          size: 13, color: Color(0xFFEA580C)),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Add New',
+                                        style: TextStyle(
+                                          fontSize: 11.sp,
+                                          fontWeight: FontWeight.w600,
+                                          color: const Color(0xFFEA580C),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              IconButton(
+                                constraints: const BoxConstraints(),
+                                padding: const EdgeInsets.all(4),
+                                icon: const Icon(Icons.close_rounded),
+                                color: const Color(0xFF64748B),
+                                onPressed: () => Navigator.pop(sheetCtx),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+
+                  // Search Bar Input
+                  Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFCBD5E1)),
+                      ),
+                      child: TextField(
+                        controller: searchController,
+                        autofocus: true,
+                        style: TextStyle(
+                          fontSize: 14.sp,
+                          color: const Color(0xFF0F172A),
+                        ),
+                        decoration: InputDecoration(
+                          hintText: 'Search customer name, phone, code...',
+                          hintStyle: TextStyle(
+                            fontSize: 14.sp,
+                            color: const Color(0xFF94A3B8),
+                          ),
+                          prefixIcon: const Icon(
+                            Icons.search_rounded,
+                            color: Color(0xFFEA580C),
+                            size: 20,
+                          ),
+                          suffixIcon: searchController.text.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear, size: 18),
+                                  color: const Color(0xFF64748B),
+                                  onPressed: () {
+                                    searchController.clear();
+                                    setModalState(() => query = '');
+                                  },
+                                )
+                              : null,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
+                          border: InputBorder.none,
+                        ),
+                        onChanged: (val) {
+                          setModalState(() => query = val);
+                        },
+                        onSubmitted: (val) {
+                          final typed = val.trim();
+                          if (typed.isEmpty) return;
+                          _handleCustomerSearchSubmit(typed, filtered);
+                          Navigator.pop(sheetCtx);
+                        },
+                      ),
+                    ),
+                  ),
+
+                  // Add New Customer Action Tile (When search query has no exact match)
+                  if (query.trim().isNotEmpty && !hasExactMatch)
+                    Padding(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                      child: InkWell(
+                        onTap: () {
+                          _handleCustomerSearchSubmit(query.trim(), filtered);
+                          Navigator.pop(sheetCtx);
+                        },
+                        borderRadius: BorderRadius.circular(10),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFF7ED),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFFFED7AA)),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 34,
+                                height: 34,
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFFEA580C),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.add_rounded,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Add "${query.trim()}"',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 14.sp,
+                                        fontWeight: FontWeight.w700,
+                                        color: const Color(0xFFEA580C),
+                                      ),
+                                    ),
+                                    Text(
+                                      'Press Enter or tap to add & select customer',
+                                      style: TextStyle(
+                                        fontSize: 11.sp,
+                                        color: const Color(0xFF9A3412),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Icon(
+                                Icons.keyboard_return_rounded,
+                                size: 18,
+                                color: Color(0xFFEA580C),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+
+                  const SizedBox(height: 6),
+
+                  // Customers List
+                  Expanded(
+                    child: _isLoadingCustomers && _liveCustomers.isEmpty
+                        ? const Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                CircularProgressIndicator(
+                                    color: Color(0xFFEA580C)),
+                                SizedBox(height: 12),
+                                Text(
+                                  'Loading customers...',
+                                  style: TextStyle(color: Color(0xFF64748B)),
+                                ),
+                              ],
+                            ),
+                          )
+                        : filtered.isEmpty
+                            ? Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(24.0),
+                                  child: Column(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.center,
+                                    children: [
+                                      const Icon(
+                                        Icons.person_search_rounded,
+                                        size: 48,
+                                        color: Color(0xFFCBD5E1),
+                                      ),
+                                      const SizedBox(height: 10),
+                                      Text(
+                                        query.isEmpty
+                                            ? 'No customers found'
+                                            : 'No customer matching "$query"',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          fontSize: 14.sp,
+                                          fontWeight: FontWeight.w600,
+                                          color: const Color(0xFF475569),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 14),
+                                      if (query.trim().isNotEmpty)
+                                        ElevatedButton.icon(
+                                          onPressed: () {
+                                            _handleCustomerSearchSubmit(
+                                                query.trim(), filtered);
+                                            Navigator.pop(sheetCtx);
+                                          },
+                                          icon: const Icon(Icons.add_rounded,
+                                              size: 18),
+                                          label: Text('Add "${query.trim()}"'),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor:
+                                                const Color(0xFFEA580C),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                            ),
+                                          ),
+                                        )
+                                      else
+                                        TextButton.icon(
+                                          onPressed: () {
+                                            _fetchCustomers();
+                                            setModalState(() {});
+                                          },
+                                          icon: const Icon(
+                                              Icons.refresh_rounded,
+                                              size: 18),
+                                          label:
+                                              const Text('Reload Customers'),
+                                          style: TextButton.styleFrom(
+                                            foregroundColor:
+                                                const Color(0xFFEA580C),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              )
+                            : ListView.separated(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 8),
+                                itemCount: filtered.length,
+                                separatorBuilder: (_, __) => const Divider(
+                                  height: 1,
+                                  color: Color(0xFFF1F5F9),
+                                ),
+                                itemBuilder: (context, index) {
+                                  final cust = filtered[index];
+                                  final isSelected = _selectedCustomerId ==
+                                          cust.id.toString() ||
+                                      _selectedCustomer.toLowerCase() ==
+                                          cust.name.toLowerCase();
+
+                                  return ListTile(
+                                    contentPadding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 4),
+                                    leading: CircleAvatar(
+                                      backgroundColor: isSelected
+                                          ? const Color(0xFFEA580C)
+                                          : const Color(0xFFFFF7ED),
+                                      backgroundImage: cust.hasValidImage
+                                          ? NetworkImage(
+                                              cust.profileImageUrl!)
+                                          : null,
+                                      child: cust.hasValidImage
+                                          ? null
+                                          : Text(
+                                              cust.initials,
+                                              style: TextStyle(
+                                                fontSize: 12.sp,
+                                                fontWeight: FontWeight.w700,
+                                                color: isSelected
+                                                    ? Colors.white
+                                                    : const Color(0xFFEA580C),
+                                              ),
+                                            ),
+                                    ),
+                                    title: Text(
+                                      cust.name,
+                                      style: TextStyle(
+                                        fontSize: 14.sp,
+                                        fontWeight: isSelected
+                                            ? FontWeight.w700
+                                            : FontWeight.w600,
+                                        color: isSelected
+                                            ? const Color(0xFFEA580C)
+                                            : const Color(0xFF0F172A),
+                                      ),
+                                    ),
+                                    subtitle: cust.displaySubtitle.isNotEmpty
+                                        ? Text(
+                                            cust.displaySubtitle,
+                                            style: TextStyle(
+                                              fontSize: 12.sp,
+                                              color: const Color(0xFF64748B),
+                                            ),
+                                          )
+                                        : null,
+                                    trailing: isSelected
+                                        ? const Icon(
+                                            Icons.check_circle_rounded,
+                                            color: Color(0xFFEA580C),
+                                            size: 20,
+                                          )
+                                        : null,
+                                    onTap: () {
+                                      _selectCustomer(cust);
+                                      Navigator.pop(sheetCtx);
+                                    },
+                                  );
+                                },
+                              ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool canGoBack = Navigator.canPop(context);
@@ -922,7 +1556,12 @@ class _SalesScreenState extends State<SalesScreen> {
       body: Stack(
         children: [
           SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(16, 20, 16, 110),
+            padding: EdgeInsets.fromLTRB(
+              16,
+              20,
+              16,
+              _isBottomPanelExpanded ? 250 : 95,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -945,51 +1584,18 @@ class _SalesScreenState extends State<SalesScreen> {
                 _buildCartItemsSection(),
                 const SizedBox(height: 16),
                 _buildDeliveryCostCard(),
-                const SizedBox(height: 16),
-                _buildPaymentModesBar(),
-                const SizedBox(height: 16),
-                _buildSaveDraftButton(),
               ],
             ),
           ),
 
-          // Sticky Bottom Bar: Total Amount & Generate Bill / Quote / Advance / Rental
+          // Fixed Bottom Panel matching screenshot design (Drag Handle, Payment Modes, Save Draft, & Sticky Bottom Bar)
           Positioned(
             left: 0,
             right: 0,
             bottom: 0,
-            child: _buildStickyBottomBar(),
+            child: _buildFixedBottomPanel(),
           ),
-
-          // Floating Calculator Widget overlay
-          if (_isCalculatorOpen)
-            Positioned(
-              right: 16,
-              bottom: 80,
-              child: CalculatorWidget(
-                onClose: () => setState(() => _isCalculatorOpen = false),
-              ),
-            ),
         ],
-      ),
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 60),
-        child: FloatingActionButton(
-          heroTag: 'sales_bills_fab',
-          onPressed: () {
-            setState(() {
-              _isCalculatorOpen = !_isCalculatorOpen;
-            });
-          },
-          backgroundColor: const Color(0xFF1E1B4B),
-          elevation: 4,
-          shape: const CircleBorder(),
-          child: const Icon(
-            Icons.calculate_outlined,
-            color: Colors.white,
-            size: 26,
-          ),
-        ),
       ),
     );
   }
@@ -1122,6 +1728,7 @@ class _SalesScreenState extends State<SalesScreen> {
         Expanded(
           child: Container(
             height: 44,
+            alignment: Alignment.center,
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(8),
@@ -1149,7 +1756,7 @@ class _SalesScreenState extends State<SalesScreen> {
                   size: 20,
                 ),
                 contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
                 border: InputBorder.none,
               ),
             ),
@@ -1348,12 +1955,16 @@ class _SalesScreenState extends State<SalesScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Products (${items.length})',
-                style: TextStyle(
-                  fontSize: 13.5.sp,
-                  fontWeight: FontWeight.w700,
-                  color: const Color(0xFF475569),
+              Flexible(
+                child: Text(
+                  'Products (${items.length})',
+                  style: TextStyle(
+                    fontSize: 13.5.sp,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF475569),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               InkWell(
@@ -1386,7 +1997,7 @@ class _SalesScreenState extends State<SalesScreen> {
           ),
         ),
         SizedBox(
-          height: 216,
+          height: 250,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
@@ -1423,7 +2034,7 @@ class _SalesScreenState extends State<SalesScreen> {
                       borderRadius: BorderRadius.circular(12),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 8),
+                            horizontal: 10, vertical: 6),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
@@ -2346,126 +2957,214 @@ class _SalesScreenState extends State<SalesScreen> {
 
           const SizedBox(height: 14),
 
-          // Row 1: Customer name & Customer phone
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          // Orange bordered customer card (Screenshot 4)
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFFF9800), width: 1.2),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Row 1: Customer name & Customer phone
+                Row(
                   children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.person_outline_rounded,
-                            size: 15, color: Color(0xFFEA580C)),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Customer name',
-                          style: TextStyle(
-                            fontSize: 14.sp,
-                            fontWeight: FontWeight.w500,
-                            color: const Color(0xFF475569),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Container(
-                      height: 42,
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: const Color(0xFFCBD5E1)),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: _selectedCustomer,
-                          isExpanded: true,
-                          icon: const Icon(
-                            Icons.keyboard_arrow_down_rounded,
-                            color: Color(0xFF64748B),
-                            size: 18,
-                          ),
-                          style: TextStyle(
-                            fontSize: 14.sp,
-                            color: const Color(0xFF0F172A),
-                          ),
-                          items: _customerList.map((c) {
-                            return DropdownMenuItem<String>(
-                              value: c,
-                              child: Text(
-                                c,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 14.sp,
-                                  color: const Color(0xFF0F172A),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.person_outline_rounded,
+                                  size: 15, color: Color(0xFFEA580C)),
+                              const SizedBox(width: 4),
+                              Flexible(
+                                child: Text(
+                                  'Customer name',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 14.sp,
+                                    fontWeight: FontWeight.w500,
+                                    color: const Color(0xFF475569),
+                                  ),
                                 ),
                               ),
-                            );
-                          }).toList(),
-                          onChanged: (val) {
-                            if (val != null) {
-                              setState(() => _selectedCustomer = val);
-                            }
-                          },
-                        ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          InkWell(
+                            onTap: _showCustomerSearchPicker,
+                            borderRadius: BorderRadius.circular(8),
+                            child: Container(
+                              height: 42,
+                              alignment: Alignment.center,
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 10),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: _selectedCustomer != 'Select Customer'
+                                      ? const Color(0xFFEA580C)
+                                      : const Color(0xFFCBD5E1),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      _selectedCustomer,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 14.sp,
+                                        fontWeight: _selectedCustomer ==
+                                                'Select Customer'
+                                            ? FontWeight.normal
+                                            : FontWeight.w600,
+                                        color: _selectedCustomer ==
+                                                'Select Customer'
+                                            ? const Color(0xFF94A3B8)
+                                            : const Color(0xFF0F172A),
+                                      ),
+                                    ),
+                                  ),
+                                  if (_isLoadingCustomers)
+                                    const SizedBox(
+                                      width: 14,
+                                      height: 14,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Color(0xFFEA580C),
+                                      ),
+                                    )
+                                  else
+                                    const Icon(
+                                      Icons.keyboard_arrow_down_rounded,
+                                      color: Color(0xFF64748B),
+                                      size: 20,
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.phone_outlined,
+                                  size: 15, color: Color(0xFFEA580C)),
+                              const SizedBox(width: 4),
+                              Flexible(
+                                child: Text(
+                                  'Customer phone',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 14.sp,
+                                    fontWeight: FontWeight.w500,
+                                    color: const Color(0xFF475569),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Container(
+                            height: 42,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8),
+                              border:
+                                  Border.all(color: const Color(0xFFCBD5E1)),
+                            ),
+                            child: TextField(
+                              controller: _phoneController,
+                              keyboardType: TextInputType.phone,
+                              textAlignVertical: TextAlignVertical.center,
+                              style: TextStyle(
+                                fontSize: 14.sp,
+                                color: const Color(0xFF0F172A),
+                              ),
+                              decoration: InputDecoration(
+                                isDense: true,
+                                hintText: 'Customer number',
+                                hintStyle: TextStyle(
+                                  fontSize: 14.sp,
+                                  color: const Color(0xFF94A3B8),
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 0),
+                                border: InputBorder.none,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.phone_outlined,
-                            size: 15, color: Color(0xFFEA580C)),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Customer phone',
-                          style: TextStyle(
-                            fontSize: 14.sp,
-                            fontWeight: FontWeight.w500,
-                            color: const Color(0xFF475569),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Container(
-                      height: 42,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: const Color(0xFFCBD5E1)),
-                      ),
-                      child: TextField(
-                        controller: _phoneController,
-                        keyboardType: TextInputType.phone,
+
+                // Row 2: Customer GST no - ONLY shown when 'With GST' mode is active
+                if (_selectedGstMode == 'With GST') ...[
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      const Icon(Icons.receipt_long_outlined,
+                          size: 15, color: Color(0xFFEA580C)),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Customer GST no',
                         style: TextStyle(
                           fontSize: 14.sp,
-                          color: const Color(0xFF0F172A),
-                        ),
-                        decoration: InputDecoration(
-                          hintText: 'Customer number',
-                          hintStyle: TextStyle(
-                            fontSize: 14.sp,
-                            color: const Color(0xFF94A3B8),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 10),
-                          border: InputBorder.none,
+                          fontWeight: FontWeight.w500,
+                          color: const Color(0xFF475569),
                         ),
                       ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Container(
+                    height: 42,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFCBD5E1)),
                     ),
-                  ],
-                ),
-              ),
-            ],
+                    child: TextField(
+                      controller: _customerGstController,
+                      textAlignVertical: TextAlignVertical.center,
+                      style: TextStyle(
+                        fontSize: 14.sp,
+                        color: const Color(0xFF0F172A),
+                      ),
+                      decoration: InputDecoration(
+                        isDense: true,
+                        hintText: 'Enter GST to auto-fill',
+                        hintStyle: TextStyle(
+                          fontSize: 14.sp,
+                          color: const Color(0xFF94A3B8),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 0),
+                        border: InputBorder.none,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ),
 
           const SizedBox(height: 12),
@@ -2799,6 +3498,73 @@ class _SalesScreenState extends State<SalesScreen> {
             ],
           ),
 
+          // Green GST Breakdown Card when With GST (Screenshot 5)
+          if (_selectedGstMode == 'With GST') ...[
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0FDF4),
+                borderRadius: BorderRadius.circular(6),
+                border: const Border(
+                  left: BorderSide(
+                    color: Color(0xFF10B981),
+                    width: 3.5,
+                  ),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'CGST: 9.00% (${_formatCurrency(item.cgstAmount)})',
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF334155),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'SGST: 9.00% (${_formatCurrency(item.sgstAmount)})',
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF334155),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Product GST Total:',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                  Text(
+                    _formatCurrency(item.gstTotal),
+                    style: const TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    'Product GST WITH Total: ${_formatCurrency(item.withGstTotal)}',
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
           const SizedBox(height: 8),
 
           // 2. Dashed Border Box for Product Description
@@ -2821,6 +3587,7 @@ class _SalesScreenState extends State<SalesScreen> {
               ),
               child: TextField(
                 controller: item.descController,
+                textAlignVertical: TextAlignVertical.center,
                 style: const TextStyle(
                   fontSize: 13,
                   color: Color(0xFF1E293B),
@@ -2948,23 +3715,37 @@ class _SalesScreenState extends State<SalesScreen> {
                 ),
                 const SizedBox(width: 8),
 
-                // Price Box
+                // Price Box (Editable TextField)
                 Container(
                   height: 34,
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  width: 76,
+                  alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(6),
                     border: Border.all(color: const Color(0xFFCBD5E1)),
                   ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    item.price.toStringAsFixed(2),
+                  child: TextField(
+                    controller: item.priceController,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    textAlign: TextAlign.center,
+                    textAlignVertical: TextAlignVertical.center,
                     style: const TextStyle(
-                      fontSize: 14,
+                      fontSize: 13.5,
                       fontWeight: FontWeight.w700,
                       color: Color(0xFF0F172A),
                     ),
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    onChanged: (val) {
+                      setState(() {
+                        item.price = double.tryParse(val) ?? 0.0;
+                      });
+                    },
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -2995,6 +3776,7 @@ class _SalesScreenState extends State<SalesScreen> {
                       child: TextField(
                         controller: item.discPercentController,
                         textAlign: TextAlign.center,
+                        textAlignVertical: TextAlignVertical.center,
                         keyboardType: TextInputType.number,
                         style: const TextStyle(
                           fontSize: 13,
@@ -3053,6 +3835,7 @@ class _SalesScreenState extends State<SalesScreen> {
                       child: TextField(
                         controller: item.discAmountController,
                         textAlign: TextAlign.center,
+                        textAlignVertical: TextAlignVertical.center,
                         keyboardType: TextInputType.number,
                         style: const TextStyle(
                           fontSize: 13,
@@ -3085,11 +3868,12 @@ class _SalesScreenState extends State<SalesScreen> {
                 ),
                 const SizedBox(width: 10),
 
-                // Sub Total & Final Total
+                // Sub Total & GST & Final Total Column matching Screenshot 5
                 Column(
                   mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
+                    // Row 1: Sub Total
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -3098,7 +3882,7 @@ class _SalesScreenState extends State<SalesScreen> {
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
-                            color: Color(0xFFE65100),
+                            color: Color(0xFFEA580C),
                           ),
                         ),
                         Text(
@@ -3106,29 +3890,93 @@ class _SalesScreenState extends State<SalesScreen> {
                           style: const TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
-                            color: Color(0xFFE65100),
+                            color: Color(0xFFEA580C),
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 4),
+
+                    // Row 2: GST Inc box (if With GST) + Delete trash icon (Screenshot 5)
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (_selectedGstMode == 'With GST') ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                color: const Color(0xFF0EA5E9),
+                                width: 1.2,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Text(
+                                  'GST Inc: ',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF0284C7),
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  _formatCurrency(item.gstTotal),
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF0284C7),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                        ],
+                        InkWell(
+                          onTap: () {
+                            setState(() {
+                              final key = item.product.id.toString();
+                              item.dispose();
+                              _cartItems.remove(key);
+                              _cart.remove(key);
+                            });
+                          },
+                          child: const Icon(
+                            Icons.delete_outline_rounded,
+                            color: Color(0xFFEF4444),
+                            size: 20,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+
+                    // Row 3: Final Total
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         const Text(
                           'Final Total: ',
                           style: TextStyle(
-                            fontSize: 11,
+                            fontSize: 11.5,
                             fontWeight: FontWeight.w700,
-                            color: Color(0xFF00897B),
+                            color: Color(0xFF16A34A),
                           ),
                         ),
                         Text(
-                          _formatCurrency(item.finalTotal),
+                          _formatCurrency(_selectedGstMode == 'With GST'
+                              ? item.withGstTotal
+                              : item.finalTotal),
                           style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF00897B),
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF16A34A),
                           ),
                         ),
                       ],
@@ -3140,6 +3988,439 @@ class _SalesScreenState extends State<SalesScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  // --- Bottom Sheet: Other Charges (Screenshot 2) ---
+  void _showOtherChargesBottomSheet() {
+    if (_otherCharges.isEmpty) {
+      _otherCharges.add(OtherChargeItem());
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext sheetContext) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setModalState) {
+            final bottomInset = MediaQuery.of(sheetContext).viewInsets.bottom;
+            return Container(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.75,
+              ),
+              margin: EdgeInsets.only(bottom: bottomInset),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Top Drag Handle
+                  Center(
+                    child: Container(
+                      margin: const EdgeInsets.only(top: 10, bottom: 8),
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFCBD5E1),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+
+                  // Header: "Other Charges" + Orange "+" button (Screenshot 2)
+                  Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Other Charges',
+                          style: TextStyle(
+                            fontSize: 16.sp,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF0F172A),
+                          ),
+                        ),
+                        InkWell(
+                          onTap: () {
+                            setModalState(() {
+                              _otherCharges.add(OtherChargeItem());
+                            });
+                            setState(() {});
+                          },
+                          borderRadius: BorderRadius.circular(6),
+                          child: Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(6),
+                              border:
+                                  Border.all(color: const Color(0xFFFED7AA)),
+                            ),
+                            alignment: Alignment.center,
+                            child: const Icon(
+                              Icons.add,
+                              color: Color(0xFFEA580C),
+                              size: 18,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1, color: Color(0xFFE2E8F0)),
+
+                  // List of rows: [Charge Name] [Amount] [Trash Icon] (Screenshot 2)
+                  Flexible(
+                    child: _otherCharges.isEmpty
+                        ? Padding(
+                            padding: const EdgeInsets.all(24.0),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.receipt_long_outlined,
+                                  size: 40,
+                                  color: Color(0xFF94A3B8),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'No other charges added.',
+                                  style: TextStyle(
+                                    fontSize: 13.sp,
+                                    color: const Color(0xFF64748B),
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                ElevatedButton.icon(
+                                  onPressed: () {
+                                    setModalState(() {
+                                      _otherCharges.add(OtherChargeItem());
+                                    });
+                                    setState(() {});
+                                  },
+                                  icon: const Icon(Icons.add, size: 16),
+                                  label: const Text('Add Charge'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFFEA580C),
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : ListView.separated(
+                            shrinkWrap: true,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 12),
+                            itemCount: _otherCharges.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 10),
+                            itemBuilder: (context, index) {
+                              final item = _otherCharges[index];
+                              return Row(
+                                children: [
+                                  // Charge Name
+                                  Expanded(
+                                    flex: 3,
+                                    child: Container(
+                                      height: 42,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                            color: const Color(0xFFCBD5E1)),
+                                      ),
+                                      child: TextField(
+                                        controller: item.nameController,
+                                        style: TextStyle(
+                                          fontSize: 14.sp,
+                                          color: const Color(0xFF0F172A),
+                                        ),
+                                        decoration: InputDecoration(
+                                          hintText: 'Charge Name',
+                                          hintStyle: TextStyle(
+                                            fontSize: 14.sp,
+                                            color: const Color(0xFF94A3B8),
+                                          ),
+                                          contentPadding:
+                                              const EdgeInsets.symmetric(
+                                                  horizontal: 10, vertical: 10),
+                                          border: InputBorder.none,
+                                        ),
+                                        onChanged: (_) {
+                                          setModalState(() {});
+                                          setState(() {});
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+
+                                  // Amount
+                                  Expanded(
+                                    flex: 2,
+                                    child: Container(
+                                      height: 42,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                            color: const Color(0xFFCBD5E1)),
+                                      ),
+                                      child: TextField(
+                                        controller: item.amountController,
+                                        keyboardType: const TextInputType
+                                            .numberWithOptions(decimal: true),
+                                        style: TextStyle(
+                                          fontSize: 14.sp,
+                                          color: const Color(0xFF0F172A),
+                                        ),
+                                        decoration: InputDecoration(
+                                          hintText: 'Amount',
+                                          hintStyle: TextStyle(
+                                            fontSize: 14.sp,
+                                            color: const Color(0xFF94A3B8),
+                                          ),
+                                          contentPadding:
+                                              const EdgeInsets.symmetric(
+                                                  horizontal: 10, vertical: 10),
+                                          border: InputBorder.none,
+                                        ),
+                                        onChanged: (_) {
+                                          setModalState(() {});
+                                          setState(() {});
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+
+                                  // Red Trash Icon Button (Screenshot 2)
+                                  InkWell(
+                                    onTap: () {
+                                      setModalState(() {
+                                        item.dispose();
+                                        _otherCharges.removeAt(index);
+                                      });
+                                      setState(() {});
+                                    },
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Container(
+                                      width: 42,
+                                      height: 42,
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                            color: const Color(0xFFEF4444)),
+                                      ),
+                                      alignment: Alignment.center,
+                                      child: const Icon(
+                                        Icons.delete_outline_rounded,
+                                        color: Color(0xFFEF4444),
+                                        size: 20,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                  ),
+
+                  // Bottom Total & Apply Action
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFF8FAFC),
+                      border: Border(
+                        top: BorderSide(color: Color(0xFFE2E8F0)),
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Total Other Charges:',
+                              style: TextStyle(
+                                fontSize: 14.sp,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF475569),
+                              ),
+                            ),
+                            Text(
+                              _formatCurrency(_otherChargesTotal),
+                              style: TextStyle(
+                                fontSize: 16.sp,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFFEA580C),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 44,
+                          child: ElevatedButton(
+                            onPressed: () {
+                              setState(() {});
+                              Navigator.pop(sheetContext);
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFEA580C),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: Text(
+                              'Apply & Close',
+                              style: TextStyle(
+                                fontSize: 14.sp,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // --- Bottom Sheet: Remarks (Optional) (Screenshot 3) ---
+  void _showRemarksBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext sheetContext) {
+        final bottomInset = MediaQuery.of(sheetContext).viewInsets.bottom;
+        return Container(
+          margin: EdgeInsets.only(bottom: bottomInset),
+          padding: const EdgeInsets.all(16),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Top Drag Handle
+              Center(
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFCBD5E1),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+
+              // Title matching Screenshot 3: "Remarks (Optional)"
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Remarks (Optional)',
+                    style: TextStyle(
+                      fontSize: 15.sp,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF334155),
+                    ),
+                  ),
+                  InkWell(
+                    onTap: () => Navigator.pop(sheetContext),
+                    child: const Icon(
+                      Icons.close,
+                      size: 20,
+                      color: Color(0xFF94A3B8),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              // Orange Bordered Box matching Screenshot 3
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: const Color(0xFFFF9800),
+                    width: 1.5,
+                  ),
+                ),
+                child: TextField(
+                  controller: _remarksController,
+                  maxLines: 4,
+                  style: TextStyle(
+                    fontSize: 14.sp,
+                    color: const Color(0xFF0F172A),
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'Enter remarks...',
+                    hintStyle: TextStyle(
+                      fontSize: 14.sp,
+                      color: const Color(0xFF94A3B8),
+                    ),
+                    contentPadding: const EdgeInsets.all(12),
+                    border: InputBorder.none,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Save Button
+              SizedBox(
+                width: double.infinity,
+                height: 44,
+                child: ElevatedButton(
+                  onPressed: () {
+                    setState(() {});
+                    Navigator.pop(sheetContext);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFEA580C),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: Text(
+                    'Save Remarks',
+                    style: TextStyle(
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -3184,21 +4465,28 @@ class _SalesScreenState extends State<SalesScreen> {
               ),
               const SizedBox(width: 8),
 
-              // Action pills: Other Charges +, Labour +, Remarks + / T&C
+              // Action pills: Other Charges +, Remarks + (Labour removed per request)
               Expanded(
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     children: [
-                      _buildSmallAddPill('Other Charges +', () {}),
+                      _buildSmallAddPill(
+                        _otherCharges.isNotEmpty
+                            ? 'Other Charges (${_otherCharges.length}) +'
+                            : 'Other Charges +',
+                        _showOtherChargesBottomSheet,
+                      ),
                       const SizedBox(width: 6),
-                      _buildSmallAddPill('Labour +', () {}),
-                      const SizedBox(width: 6),
-                      if (_activeBillType == 'Sales')
-                        _buildSmallAddPill('T&C and Remarks', () {},
-                            icon: Icons.edit_outlined)
-                      else
-                        _buildSmallAddPill('Remarks +', () {}),
+                      _buildSmallAddPill(
+                        _remarksController.text.trim().isNotEmpty
+                            ? 'Remarks (Added)'
+                            : 'Remarks +',
+                        _showRemarksBottomSheet,
+                        icon: _remarksController.text.trim().isNotEmpty
+                            ? Icons.check
+                            : null,
+                      ),
                     ],
                   ),
                 ),
@@ -3211,6 +4499,7 @@ class _SalesScreenState extends State<SalesScreen> {
           // Delivery Cost Input
           Container(
             height: 42,
+            alignment: Alignment.center,
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(8),
@@ -3219,19 +4508,21 @@ class _SalesScreenState extends State<SalesScreen> {
             child: TextField(
               controller: _deliveryCostController,
               keyboardType: TextInputType.number,
+              textAlignVertical: TextAlignVertical.center,
               onChanged: (_) => setState(() {}),
               style: TextStyle(
                 fontSize: 14.sp,
                 color: const Color(0xFF0F172A),
               ),
               decoration: InputDecoration(
+                isDense: true,
                 hintText: 'Delivery Cost.',
                 hintStyle: TextStyle(
                   fontSize: 14.sp,
                   color: const Color(0xFF94A3B8),
                 ),
                 contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
                 border: InputBorder.none,
               ),
             ),
@@ -3264,6 +4555,7 @@ class _SalesScreenState extends State<SalesScreen> {
             const SizedBox(height: 6),
             Container(
               height: 42,
+              alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(8),
@@ -3272,18 +4564,20 @@ class _SalesScreenState extends State<SalesScreen> {
               child: TextField(
                 controller: _depositController,
                 keyboardType: TextInputType.number,
+                textAlignVertical: TextAlignVertical.center,
                 style: TextStyle(
                   fontSize: 14.sp,
                   color: const Color(0xFF0F172A),
                 ),
                 decoration: InputDecoration(
+                  isDense: true,
                   hintText: 'Enter Deposit Amount',
                   hintStyle: TextStyle(
                     fontSize: 14.sp,
                     color: const Color(0xFF94A3B8),
                   ),
                   contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
                   border: InputBorder.none,
                 ),
               ),
@@ -3310,6 +4604,7 @@ class _SalesScreenState extends State<SalesScreen> {
                     const SizedBox(height: 5),
                     Container(
                       height: 40,
+                      alignment: Alignment.center,
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(8),
@@ -3318,11 +4613,16 @@ class _SalesScreenState extends State<SalesScreen> {
                       child: TextField(
                         controller: _tdsPercentController,
                         keyboardType: TextInputType.number,
+                        textAlignVertical: TextAlignVertical.center,
                         onChanged: (_) => setState(() {}),
-                        style: TextStyle(fontSize: 14.sp),
+                        style: TextStyle(
+                          fontSize: 14.sp,
+                          color: const Color(0xFF0F172A),
+                        ),
                         decoration: const InputDecoration(
+                          isDense: true,
                           contentPadding:
-                              EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                              EdgeInsets.symmetric(horizontal: 10, vertical: 0),
                           border: InputBorder.none,
                         ),
                       ),
@@ -3387,6 +4687,7 @@ class _SalesScreenState extends State<SalesScreen> {
                     const SizedBox(height: 5),
                     Container(
                       height: 40,
+                      alignment: Alignment.center,
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(8),
@@ -3395,11 +4696,16 @@ class _SalesScreenState extends State<SalesScreen> {
                       child: TextField(
                         controller: _discountPercentController,
                         keyboardType: TextInputType.number,
+                        textAlignVertical: TextAlignVertical.center,
                         onChanged: (_) => setState(() {}),
-                        style: TextStyle(fontSize: 14.sp),
+                        style: TextStyle(
+                          fontSize: 14.sp,
+                          color: const Color(0xFF0F172A),
+                        ),
                         decoration: const InputDecoration(
+                          isDense: true,
                           contentPadding:
-                              EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                              EdgeInsets.symmetric(horizontal: 10, vertical: 0),
                           border: InputBorder.none,
                         ),
                       ),
@@ -3479,7 +4785,8 @@ class _SalesScreenState extends State<SalesScreen> {
             const SizedBox(height: 12),
           ],
 
-          // Total (Product) row
+          // Summary Rows matching Screenshot / Image 2
+          // Total (Product) row (always shown)
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -3495,39 +4802,174 @@ class _SalesScreenState extends State<SalesScreen> {
                 _formatCurrency(_productSubtotal),
                 style: TextStyle(
                   fontSize: 15.sp,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w700,
                   color: const Color(0xFF16A34A),
                 ),
               ),
             ],
           ),
 
-          // TDS row (Screenshot 1, 4)
-          const SizedBox(height: 4),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'TDS (0.00%)',
-                style: TextStyle(
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w500,
-                  color: const Color(0xFF64748B),
+          // Total GST Amount - shown only when With GST is active & GST > 0
+          if (_selectedGstMode == 'With GST' && _totalGstAmount > 0) ...[
+            _buildDashedDivider(),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Total GST Amount',
+                  style: TextStyle(
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w500,
+                    color: const Color(0xFF475569),
+                  ),
                 ),
-              ),
-              Text(
-                '- ${_formatCurrency(_tdsAmount)}',
-                style: TextStyle(
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFF64748B),
+                Text(
+                  _formatCurrency(_totalGstAmount),
+                  style: TextStyle(
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF0F172A),
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
+          ],
+
+          // Delivery Cost breakdown line - shown only when > 0
+          if (_deliveryCost > 0) ...[
+            _buildDashedDivider(),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Delivery Cost',
+                  style: TextStyle(
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w500,
+                    color: const Color(0xFF475569),
+                  ),
+                ),
+                Text(
+                  '+ ${_formatCurrency(_deliveryCost)}',
+                  style: TextStyle(
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF0F172A),
+                  ),
+                ),
+              ],
+            ),
+          ],
+
+          // Other Charges breakdown line - shown only when > 0
+          if (_otherChargesTotal > 0) ...[
+            _buildDashedDivider(),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Other Charges',
+                  style: TextStyle(
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w500,
+                    color: const Color(0xFF475569),
+                  ),
+                ),
+                Text(
+                  '+ ${_formatCurrency(_otherChargesTotal)}',
+                  style: TextStyle(
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF0F172A),
+                  ),
+                ),
+              ],
+            ),
+          ],
+
+          // Discount Amount breakdown line - shown only when > 0
+          if (_discountAmount > 0) ...[
+            _buildDashedDivider(),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Discount Amount',
+                  style: TextStyle(
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w500,
+                    color: const Color(0xFF475569),
+                  ),
+                ),
+                Text(
+                  _formatCurrency(_discountAmount),
+                  style: TextStyle(
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF0F172A),
+                  ),
+                ),
+              ],
+            ),
+          ],
+
+          // SubTotal row - shown only when adjustments exist (matching Image 2)
+          if ((_selectedGstMode == 'With GST' && _totalGstAmount > 0) ||
+              _deliveryCost > 0 ||
+              _otherChargesTotal > 0 ||
+              _discountAmount > 0) ...[
+            _buildDashedDivider(),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'SubTotal',
+                  style: TextStyle(
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF1E293B),
+                  ),
+                ),
+                Text(
+                  _formatCurrency(_subtotalAmount),
+                  style: TextStyle(
+                    fontSize: 14.5.sp,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF0F172A),
+                  ),
+                ),
+              ],
+            ),
+          ],
+
+          // TDS row - shown ONLY when TDS is actually added (> 0) per user request
+          if (_tdsAmount > 0) ...[
+            _buildDashedDivider(),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'TDS (${(double.tryParse(_tdsPercentController.text) ?? 0).toStringAsFixed(2)}%)',
+                  style: TextStyle(
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w500,
+                    color: const Color(0xFF64748B),
+                  ),
+                ),
+                Text(
+                  '- ${_formatCurrency(_tdsAmount)}',
+                  style: TextStyle(
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF64748B),
+                  ),
+                ),
+              ],
+            ),
+          ],
 
           // Grand Total line
-          const SizedBox(height: 4),
+          _buildDashedDivider(),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -3550,6 +4992,36 @@ class _SalesScreenState extends State<SalesScreen> {
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  // Subtle dashed divider for breakdown rows matching Image 2
+  Widget _buildDashedDivider() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final boxWidth = constraints.constrainWidth();
+          const dashWidth = 4.0;
+          const dashSpace = 3.0;
+          final dashCount = (boxWidth / (dashWidth + dashSpace)).floor();
+          if (dashCount <= 0) {
+            return const Divider(height: 1, thickness: 0.8, color: Color(0xFFE2E8F0));
+          }
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: List.generate(dashCount, (_) {
+              return const SizedBox(
+                width: dashWidth,
+                height: 1,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(color: Color(0xFFE2E8F0)),
+                ),
+              );
+            }),
+          );
+        },
       ),
     );
   }
@@ -3691,11 +5163,119 @@ class _SalesScreenState extends State<SalesScreen> {
     );
   }
 
+  // --- Combined Fixed Bottom Panel matching screenshot ---
+  Widget _buildFixedBottomPanel() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 10,
+            offset: const Offset(0, -3),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // 1. Drag / Tap Handle Header (↑ drag to reveal products ↓)
+            GestureDetector(
+              onTap: () {
+                setState(() {
+                  _isBottomPanelExpanded = !_isBottomPanelExpanded;
+                });
+              },
+              onVerticalDragEnd: (details) {
+                if (details.primaryVelocity != null) {
+                  if (details.primaryVelocity! > 80) {
+                    setState(() => _isBottomPanelExpanded = false);
+                  } else if (details.primaryVelocity! < -80) {
+                    setState(() => _isBottomPanelExpanded = true);
+                  }
+                }
+              },
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 7),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF94A3B8),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      _isBottomPanelExpanded
+                          ? '↑ drag to reveal products ↓'
+                          : '↓ tap to show payment options ↑',
+                      style: TextStyle(
+                        fontSize: 12.sp,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF64748B),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // 2. Expandable Body: Payment Methods Bar & Save Draft Button
+            AnimatedCrossFade(
+              firstChild: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 8),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: _buildPaymentModesBar(),
+                  ),
+                  const SizedBox(height: 8),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: _buildSaveDraftButton(),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+              ),
+              secondChild: const SizedBox.shrink(),
+              crossFadeState: _isBottomPanelExpanded
+                  ? CrossFadeState.showFirst
+                  : CrossFadeState.showSecond,
+              duration: const Duration(milliseconds: 200),
+            ),
+
+            // 3. Navy Bottom Bar: Total Amount & Dynamic Generate Button
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+              child: _buildStickyBottomBar(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // --- 11. Sticky Bottom Bar: Total Amount & Dynamic Generate Button ---
   Widget _buildStickyBottomBar() {
     return Container(
-      color: const Color(0xFF0F172A),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F172A),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -3712,38 +5292,296 @@ class _SalesScreenState extends State<SalesScreen> {
             ),
           ),
           InkWell(
-            onTap: () {
-              Get.snackbar(
-                'Success',
-                '$_dynamicGenerateButtonLabel successful with total ${_formatCurrency(_grandTotal)}',
-                snackPosition: SnackPosition.BOTTOM,
-                backgroundColor: const Color(0xFF22C55E),
-                colorText: Colors.white,
-                margin: const EdgeInsets.all(12),
-              );
-            },
-            child: Row(
+            onTap: _isSubmittingOrder ? null : _submitOrderSale,
+            child: _isSubmittingOrder
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2.2,
+                    ),
+                  )
+                : Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _dynamicGenerateButtonLabel,
+                        style: TextStyle(
+                          fontSize: 14.5.sp,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(
+                        Icons.arrow_forward_rounded,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                    ],
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- Submit Order Sale to /api/order_sale ---
+  Future<void> _submitOrderSale() async {
+    if (_cartItems.isEmpty) {
+      Get.snackbar(
+        'Empty Bill',
+        'Please add at least one product before generating bill.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: const Color(0xFFEF4444),
+        colorText: Colors.white,
+        margin: const EdgeInsets.all(12),
+      );
+      return;
+    }
+
+    if (_isSubmittingOrder) return;
+
+    setState(() => _isSubmittingOrder = true);
+
+    try {
+      final formattedDate =
+          "${_orderDate.year}-${_orderDate.month.toString().padLeft(2, '0')}-${_orderDate.day.toString().padLeft(2, '0')}";
+
+      final items = _cartItems.values.map((cartItem) {
+        return CreateOrderItemRequestModel(
+          productId: cartItem.product.id,
+          productName: cartItem.product.name,
+          quantity: cartItem.quantity,
+          price: cartItem.price,
+          total: _selectedGstMode == 'With GST'
+              ? cartItem.withGstTotal
+              : cartItem.finalTotal,
+        );
+      }).toList();
+
+      final customerIdToUse = _selectedCustomerId ??
+          (_selectedCustomerModel?.id.toString() ?? "1");
+      final customerPhoneToUse = _phoneController.text.trim().isNotEmpty
+          ? _phoneController.text.trim()
+          : (_selectedCustomerModel?.phone ?? "9876543210");
+
+      final gstOption =
+          _selectedGstMode == 'With GST' ? 'with_gst' : 'without_gst';
+
+      final request = CreateOrderSaleRequestModel(
+        customerId: customerIdToUse,
+        customerPhone: customerPhoneToUse,
+        gstOption: gstOption,
+        orderDate: formattedDate,
+        quotationStatus: "sale",
+        paymentMethod: _selectedPaymentMode.toLowerCase(),
+        paidType: "cash_fully",
+        subtotal: _productSubtotal,
+        amount: _grandTotal,
+        paymentAmount: _grandTotal,
+        pendingAmount: 0.0,
+        cashAmount: _grandTotal,
+        total: _grandTotal,
+        discount: _discountAmount,
+        remarks: _remarksController.text.trim().isNotEmpty
+            ? _remarksController.text.trim()
+            : "Sale order placed from mobile app",
+        items: items,
+      );
+
+      if (kDebugMode) {
+        debugPrint(
+            '\n==================== [SALES SCREEN: SUBMITTING SALE ORDER] ====================');
+        debugPrint(
+            'JSON Payload:\n${const JsonEncoder.withIndent('  ').convert(request.toJson())}');
+        debugPrint(
+            '=================================================================================\n');
+      }
+
+      final response = await _orderService.createOrderSale(request);
+
+      if (kDebugMode) {
+        debugPrint('🏁 [SALES SCREEN] Order Response: status=${response.status}, order_id=${response.orderId}, message="${response.message}"');
+      }
+
+      setState(() => _isSubmittingOrder = false);
+
+      if (response.status) {
+        // Clear active cart upon successful sale
+        setState(() {
+          _cart.clear();
+          _cartItems.clear();
+        });
+
+        if (mounted) {
+          _showOrderSuccessDialog(response);
+        }
+      } else {
+        Get.snackbar(
+          'Order Failed',
+          response.message.isNotEmpty
+              ? response.message
+              : 'Failed to place order sale. Please try again.',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: const Color(0xFFEF4444),
+          colorText: Colors.white,
+          margin: const EdgeInsets.all(12),
+        );
+      }
+    } catch (e) {
+      setState(() => _isSubmittingOrder = false);
+      Get.snackbar(
+        'Error',
+        e.toString(),
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: const Color(0xFFEF4444),
+        colorText: Colors.white,
+        margin: const EdgeInsets.all(12),
+      );
+    }
+  }
+
+  // --- Show Order Success Dialog ---
+  void _showOrderSuccessDialog(CreateOrderSaleResponseModel response) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        final invoice = response.salesInvoice;
+        return Dialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  _dynamicGenerateButtonLabel,
-                  style: TextStyle(
-                    fontSize: 14.5.sp,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFF0FDF4),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.check_circle_rounded,
+                    color: Color(0xFF16A34A),
+                    size: 48,
                   ),
                 ),
-                const SizedBox(width: 4),
-                const Icon(
-                  Icons.arrow_forward_rounded,
-                  color: Colors.white,
-                  size: 18,
+                const SizedBox(height: 16),
+                Text(
+                  'Order Placed Successfully!',
+                  style: TextStyle(
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF0F172A),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  response.orderId != null
+                      ? 'Order #${response.orderId} created successfully.'
+                      : response.message,
+                  style: TextStyle(
+                    fontSize: 14.sp,
+                    color: const Color(0xFF64748B),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                if (invoice != null && invoice.fileUrl != null) ...[
+                  const SizedBox(height: 14),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.picture_as_pdf_rounded,
+                          color: Color(0xFFEF4444),
+                          size: 24,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            invoice.fileName ?? 'Invoice PDF',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 13.5.sp,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF0F172A),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          side: const BorderSide(color: Color(0xFFCBD5E1)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: Text(
+                          'New Sale',
+                          style: TextStyle(
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF475569),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          Get.off(() => const AllSalesScreen());
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFFF6B2C),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: Text(
+                          'View All Sales',
+                          style: TextStyle(
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

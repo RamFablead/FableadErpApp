@@ -7,7 +7,10 @@ class ApiConstants {
   // Product, Category & Order Endpoints
   static const String getAllProductEndpoint = '/api/getAllProduct';
   static const String getAllCategoryEndpoint = '/api/getAllCategory';
+  static const String getAllCustomerEndpoint = '/api/getAllCustomer';
   static const String getOrdersEndpoint = '/api/get_orders';
+  static const String orderSaleEndpoint = '/api/order_sale';
+  static String deleteOrderEndpoint(dynamic orderId) => '/api/delete/$orderId';
   
   // Product & Catalog Endpoints
   static const String getAllBrands = '/api/getAllBrand';

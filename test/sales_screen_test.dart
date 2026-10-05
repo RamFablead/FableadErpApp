@@ -95,16 +95,6 @@ void main() {
     // 7. Test Add Product Button exists
     expect(find.text('Add Product'), findsOneWidget);
 
-    // 8. Test Calculator FAB
-    final fab = find.byType(FloatingActionButton);
-    expect(fab, findsOneWidget);
-    await tester.tap(fab);
-    await tester.pump();
-    expect(find.byType(CalculatorWidget), findsOneWidget);
-    await tester.tap(fab);
-    await tester.pump();
-    expect(find.byType(CalculatorWidget), findsNothing);
-
     await tester.pumpAndSettle();
   });
 }
