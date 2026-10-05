@@ -3,18 +3,19 @@ import 'package:get/get.dart';
 import 'package:sizer/sizer.dart';
 import '../core/constants/app_colors.dart';
 import '../core/constants/app_styles.dart';
-import '../screens/products/view/product_screen.dart';
-import '../screens/products/view/add_product_screen.dart';
-import '../screens/products/view/raw_materials_screen.dart';
-import '../screens/products/view/import_product_screen.dart';
-import '../screens/manageinventory/view/manage_inventory_screen.dart';
-import '../screens/financers/view/financers_screen.dart';
-import '../screens/productdelivery/view/product_delivery_screen.dart';
-import '../screens/sales&bills/view/all_sales_screen.dart';
+import '../core/services/storage_service.dart';
+import '../models/user_model.dart';
 import '../screens/accounting/view/account_ledger_screen.dart';
 import '../screens/catalogsetup/view/product_category_screen.dart';
-import '../core/services/storage_service.dart';
+import '../screens/financers/view/financers_screen.dart';
 import '../screens/login_screen.dart';
+import '../screens/manageinventory/view/manage_inventory_screen.dart';
+import '../screens/productdelivery/view/product_delivery_screen.dart';
+import '../screens/products/view/add_product_screen.dart';
+import '../screens/products/view/import_product_screen.dart';
+import '../screens/products/view/product_screen.dart';
+import '../screens/products/view/raw_materials_screen.dart';
+import '../screens/sales&bills/view/all_sales_screen.dart';
 
 class CustomDrawer extends StatefulWidget {
   final bool isDarkMode;
@@ -33,10 +34,7 @@ class CustomDrawer extends StatefulWidget {
 }
 
 class _CustomDrawerState extends State<CustomDrawer> {
-  final TextEditingController _searchController = TextEditingController();
-  String _searchQuery = '';
-
-  // Track expanded tile sections
+  // Track expanded sections
   bool _isErpExpanded = true;
   bool _isProductsExpanded = false;
   bool _isCrmExpanded = false;
@@ -54,424 +52,443 @@ class _CustomDrawerState extends State<CustomDrawer> {
         widget.activeItem == 'All Raw Materials' ||
         widget.activeItem == 'Import Products') {
       _isProductsExpanded = true;
+      _isErpExpanded = true;
     }
     if (widget.activeItem == 'Account Ledger') {
       _isAccountingExpanded = true;
       _isErpExpanded = false;
     }
-    if (widget.activeItem == 'Catalog Setup') {
+    if (widget.activeItem == 'Catalog Setup' ||
+        widget.activeItem == 'Sales & Bills' ||
+        widget.activeItem == 'Products Delivery' ||
+        widget.activeItem == 'Financers' ||
+        widget.activeItem == 'Manage Inventory') {
       _isErpExpanded = true;
     }
   }
 
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
+
 
   @override
   Widget build(BuildContext context) {
-    final bgColor = widget.isDarkMode ? AppColors.tidcraftCardBg : Colors.white;
-    final headerBg = widget.isDarkMode
-        ? AppColors.tidcraftCardLight
-        : const Color(0xFF1E293B);
-    final borderColor =
-        widget.isDarkMode ? AppColors.tidcraftBorder : const Color(0xFFE2E8F0);
-    final textPrimary =
-        widget.isDarkMode ? Colors.white : const Color(0xFF0F172A);
-    final textSecondary = widget.isDarkMode
-        ? const Color(0xFF94A3B8)
-        : const Color(0xFF64748B);
-    final inputBg = widget.isDarkMode
-        ? const Color(0xFF16233B)
-        : const Color(0xFFF1F5F9);
+    final bool isDark = widget.isDarkMode;
+    final Color drawerBg = isDark ? const Color(0xFF0F172A) : Colors.white;
+    final Color headerBg = isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC);
+    final Color borderColor = isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0);
+    final Color textPrimary = isDark ? const Color(0xFFF8FAFC) : const Color(0xFF0F172A);
+    final Color textSecondary = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
 
     return Drawer(
-      backgroundColor: bgColor,
+      backgroundColor: drawerBg,
+      elevation: 4,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.only(
+          topRight: Radius.circular(20),
+          bottomRight: Radius.circular(20),
+        ),
+      ),
       child: Column(
         children: [
-          // 1. Drawer Header (Side-by-side Avatar & User Details)
-          _buildDrawerHeader(headerBg),
+          // 1. Simple & Sober Header
+          _buildSoberHeader(context, headerBg, borderColor, textPrimary, textSecondary),
 
-          // 2. Search Input Field
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.5.h),
-            child: TextField(
-              controller: _searchController,
-              onChanged: (val) {
-                setState(() {
-                  _searchQuery = val.toLowerCase();
-                });
-              },
-              style: TextStyle(
-                fontFamily: AppStyles.fontFamily,
-                fontSize: 13.sp, // LARGER Font
-                color: textPrimary,
-              ),
-              decoration: InputDecoration(
-                hintText: 'Search...',
-                hintStyle: TextStyle(
-                  fontFamily: AppStyles.fontFamily,
-                  fontSize: 13.sp, // LARGER Hint Font
-                  color: textSecondary,
-                ),
-                prefixIcon: Icon(Icons.search_rounded,
-                    color: textSecondary, size: 17.sp),
-                filled: true,
-                fillColor: inputBg,
-                contentPadding: EdgeInsets.symmetric(vertical: 1.2.h),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-            ),
-          ),
-
-          // 3. Scrollable Category List matching exact Web/Mobile screenshots
+          // 2. Navigation List
           Expanded(
             child: ListView(
-              padding: EdgeInsets.symmetric(horizontal: 2.5.w),
               physics: const BouncingScrollPhysics(),
+              padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.5.h),
               children: [
-                // Single Item: Dashboard
-                if (_shouldShow('Dashboard'))
+                // Dashboard Item
+                _buildSimpleNavItem(
+                  title: 'Dashboard',
+                  icon: Icons.dashboard_outlined,
+                  activeIcon: Icons.dashboard_rounded,
+                  textPrimary: textPrimary,
+                  onTap: () {
+                    widget.onItemSelected?.call('Dashboard');
+                    Navigator.pop(context);
+                  },
+                ),
 
-                  _buildSingleMenuItem(
-                    title: 'Dashboard',
-                    icon: Icons.space_dashboard_outlined,
-                    textPrimary: textPrimary,
-                  ),
-
-                // Group 1: ERP
-                if (_shouldShowAny(['ERP', 'Products', 'All Products', 'New Product', 'All Raw Materials', 'Import Products', 'Catalog Setup', 'Sales & Bills', 'Products Delivery', 'Purchases', 'Vendors', 'Financers', 'Manage Inventory', 'Returns']))
-                  _buildExpandableCategory(
-                    title: 'ERP',
-                    icon: Icons.business_center_outlined,
-                    isExpanded: _isErpExpanded,
-                    onToggle: () => setState(() => _isErpExpanded = !_isErpExpanded),
-                    textPrimary: textPrimary,
-                    textSecondary: textSecondary,
-                    children: [
-                      _buildProductsAccordion(textPrimary, textSecondary),
-                      _buildSubMenuItem(
-                        'Catalog Setup',
-                        Icons.label_outlined,
-                        textPrimary,
+                // Section 1: ERP
+                _buildSectionHeader('ERP & INVENTORY', textSecondary),
+                _buildExpandableSection(
+                  title: 'ERP Modules',
+                  icon: Icons.business_center_outlined,
+                  isExpanded: _isErpExpanded,
+                  onToggle: () => setState(() => _isErpExpanded = !_isErpExpanded),
+                  textPrimary: textPrimary,
+                  textSecondary: textSecondary,
+                  children: [
+                      _buildProductsAccordion(textPrimary, textSecondary, isDark),
+                      _buildSubItem(
+                        title: 'Catalog Setup',
+                        icon: Icons.label_outline,
+                        textPrimary: textPrimary,
                         onTap: () {
                           widget.onItemSelected?.call('Catalog Setup');
                           Navigator.pop(context);
                           Get.to(() => const ProductCategoryScreen());
                         },
                       ),
-                      _buildSubMenuItem(
-                        'Sales & Bills',
-                        Icons.shopping_cart_outlined,
-                        textPrimary,
+                      _buildSubItem(
+                        title: 'Sales & Bills',
+                        icon: Icons.shopping_cart_outlined,
+                        textPrimary: textPrimary,
                         onTap: () {
                           widget.onItemSelected?.call('Sales & Bills');
                           Navigator.pop(context);
                           Get.to(() => const AllSalesScreen());
                         },
                       ),
-                      _buildSubMenuItem(
-                        'Products Delivery',
-                        Icons.local_shipping_outlined,
-                        textPrimary,
+                      _buildSubItem(
+                        title: 'Products Delivery',
+                        icon: Icons.local_shipping_outlined,
+                        textPrimary: textPrimary,
                         onTap: () {
                           widget.onItemSelected?.call('Products Delivery');
                           Navigator.pop(context);
                           Get.to(() => const ProductDeliveryScreen());
                         },
                       ),
-                      _buildSubMenuItem('Purchases', Icons.receipt_long_outlined, textPrimary),
-                      _buildSubMenuItem('Vendors', Icons.handshake_outlined, textPrimary),
-                      _buildSubMenuItem(
-                        'Financers',
-                        Icons.account_balance_outlined,
-                        textPrimary,
+                      _buildSubItem(
+                        title: 'Purchases',
+                        icon: Icons.receipt_long_outlined,
+                        textPrimary: textPrimary,
+                      ),
+                      _buildSubItem(
+                        title: 'Vendors',
+                        icon: Icons.handshake_outlined,
+                        textPrimary: textPrimary,
+                      ),
+                      _buildSubItem(
+                        title: 'Financers',
+                        icon: Icons.account_balance_outlined,
+                        textPrimary: textPrimary,
                         onTap: () {
                           widget.onItemSelected?.call('Financers');
                           Navigator.pop(context);
                           Get.to(() => const FinancersScreen());
                         },
                       ),
-                      _buildSubMenuItem(
-                        'Manage Inventory',
-                        Icons.inventory_2_outlined,
-                        textPrimary,
+                      _buildSubItem(
+                        title: 'Manage Inventory',
+                        icon: Icons.inventory_2_outlined,
+                        textPrimary: textPrimary,
                         onTap: () {
                           widget.onItemSelected?.call('Manage Inventory');
                           Navigator.pop(context);
                           Get.to(() => const ManageInventoryScreen());
                         },
                       ),
-                      _buildSubMenuItem('Returns', Icons.replay_outlined, textPrimary),
+                      _buildSubItem(
+                        title: 'Returns',
+                        icon: Icons.replay_outlined,
+                        textPrimary: textPrimary,
+                      ),
                     ],
                   ),
 
-                // Group 2: CRM
-                if (_shouldShowAny(['CRM', 'Customers', 'Manage Leads', 'Follow Ups', 'Meetings', 'Tickets']))
-                  _buildExpandableCategory(
-                    title: 'CRM',
-                    icon: Icons.groups_outlined,
-                    isExpanded: _isCrmExpanded,
-                    onToggle: () => setState(() => _isCrmExpanded = !_isCrmExpanded),
-                    textPrimary: textPrimary,
-                    textSecondary: textSecondary,
-                    children: [
-                      _buildSubMenuItem('Customers', Icons.people_outline, textPrimary),
-                      _buildSubMenuItem('Manage Leads', Icons.campaign_outlined, textPrimary),
-                      _buildSubMenuItem('Follow Ups', Icons.calendar_today_outlined, textPrimary),
-                      _buildSubMenuItem('Meetings', Icons.handshake_outlined, textPrimary),
-                      _buildSubMenuItem('Tickets', Icons.confirmation_number_outlined, textPrimary),
+                // Section 2: CRM
+                _buildSectionHeader('CRM & RELATIONS', textSecondary),
+                _buildExpandableSection(
+                  title: 'CRM',
+                  icon: Icons.groups_outlined,
+                  isExpanded: _isCrmExpanded,
+                  onToggle: () => setState(() => _isCrmExpanded = !_isCrmExpanded),
+                  textPrimary: textPrimary,
+                  textSecondary: textSecondary,
+                  children: [
+                      _buildSubItem(
+                        title: 'Customers',
+                        icon: Icons.people_outline,
+                        textPrimary: textPrimary,
+                      ),
+                      _buildSubItem(
+                        title: 'Manage Leads',
+                        icon: Icons.campaign_outlined,
+                        textPrimary: textPrimary,
+                      ),
+                      _buildSubItem(
+                        title: 'Follow Ups',
+                        icon: Icons.calendar_today_outlined,
+                        textPrimary: textPrimary,
+                      ),
+                      _buildSubItem(
+                        title: 'Meetings',
+                        icon: Icons.handshake_outlined,
+                        textPrimary: textPrimary,
+                      ),
+                      _buildSubItem(
+                        title: 'Tickets',
+                        icon: Icons.confirmation_number_outlined,
+                        textPrimary: textPrimary,
+                      ),
                     ],
                   ),
 
-                // Group 3: Reports
-                if (_shouldShowAny(['Reports', 'Sales Report', 'Sales Pool Report', 'TDS Report', 'Purchase Report', 'Expenses Report', 'Profit & Loss Statement']))
-                  _buildExpandableCategory(
-                    title: 'Reports',
-                    icon: Icons.query_stats_outlined,
-                    isExpanded: _isReportsExpanded,
-                    onToggle: () => setState(() => _isReportsExpanded = !_isReportsExpanded),
-                    textPrimary: textPrimary,
-                    textSecondary: textSecondary,
-                    children: [
-                      _buildSubMenuItem('Sales Report', Icons.radio_button_unchecked, textPrimary),
-                      _buildSubMenuItem('Sales Pool Report', Icons.radio_button_unchecked, textPrimary),
-                      _buildSubMenuItem('TDS Report', Icons.radio_button_unchecked, textPrimary),
-                      _buildSubMenuItem('Purchase Report', Icons.radio_button_unchecked, textPrimary),
-                      _buildSubMenuItem('Expenses Report', Icons.radio_button_unchecked, textPrimary),
-                      _buildSubMenuItem('Profit & Loss Statement', Icons.radio_button_unchecked, textPrimary),
-                    ],
-                  ),
-
-                // Group 4: Accounting
-                if (_shouldShowAny(['Accounting', 'Account Ledger', 'Manage Accounting', 'Receipt & Payment', 'Expenses', 'Cash & Bank', 'Credit/Debit Notes', 'GST Reports']))
-                  _buildExpandableCategory(
-                    title: 'Accounting',
-                    icon: Icons.calculate_outlined,
-                    isExpanded: _isAccountingExpanded,
-                    onToggle: () => setState(() => _isAccountingExpanded = !_isAccountingExpanded),
-                    textPrimary: textPrimary,
-                    textSecondary: textSecondary,
-                    children: [
-                      _buildSubMenuItem(
-                        'Account Ledger',
-                        Icons.menu_book_outlined,
-                        textPrimary,
+                // Section 3: Accounting & Finance
+                _buildSectionHeader('FINANCE & ACCOUNTS', textSecondary),
+                _buildExpandableSection(
+                  title: 'Accounting',
+                  icon: Icons.calculate_outlined,
+                  isExpanded: _isAccountingExpanded,
+                  onToggle: () => setState(() => _isAccountingExpanded = !_isAccountingExpanded),
+                  textPrimary: textPrimary,
+                  textSecondary: textSecondary,
+                  children: [
+                      _buildSubItem(
+                        title: 'Account Ledger',
+                        icon: Icons.menu_book_outlined,
+                        textPrimary: textPrimary,
                         onTap: () {
                           widget.onItemSelected?.call('Account Ledger');
                           Navigator.pop(context);
                           Get.to(() => const AccountLedgerScreen());
                         },
                       ),
-                      _buildSubMenuItem('Manage Accounting', Icons.assessment_outlined, textPrimary),
-                      _buildSubMenuItem('Receipt & Payment', Icons.receipt_outlined, textPrimary),
-                      _buildSubMenuItem('Expenses', Icons.credit_card_outlined, textPrimary),
-                      _buildSubMenuItem('Cash & Bank', Icons.account_balance_wallet_outlined, textPrimary),
-                      _buildSubMenuItem('Credit/Debit Notes', Icons.subtitles_outlined, textPrimary),
-                      _buildSubMenuItem('GST Reports', Icons.analytics_outlined, textPrimary),
-                    ],
-                  ),
-
-                // Group 5: HR
-                if (_shouldShowAny(['HR', 'Staff Attendance', 'Payroll Progress']))
-                  _buildExpandableCategory(
-                    title: 'HR',
-                    icon: Icons.badge_outlined,
-                    isExpanded: _isHrExpanded,
-                    onToggle: () => setState(() => _isHrExpanded = !_isHrExpanded),
-                    textPrimary: textPrimary,
-                    textSecondary: textSecondary,
-                    children: [
-                      _buildSubMenuItem('Staff Attendance', Icons.check_circle_outline, textPrimary),
-                      _buildSubMenuItem('Payroll Progress', Icons.payments_outlined, textPrimary),
-                    ],
-                  ),
-
-                // Group 6: Settings
-                if (_shouldShowAny(['Settings', 'General Settings', 'Company Profile']))
-                  _buildExpandableCategory(
-                    title: 'Settings',
-                    icon: Icons.settings_outlined,
-                    isExpanded: _isSettingsExpanded,
-                    onToggle: () => setState(() => _isSettingsExpanded = !_isSettingsExpanded),
-                    textPrimary: textPrimary,
-                    textSecondary: textSecondary,
-                    children: [
-                      _buildSubMenuItem('General Settings', Icons.tune_outlined, textPrimary),
-                      _buildSubMenuItem('Company Profile', Icons.business_outlined, textPrimary),
-                    ],
-                  ),
-              ],
-            ),
-          ),
-
-          // 4. Footer & Copyright Notice
-          Divider(color: borderColor, height: 1),
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.2.h),
-            child: Column(
-              children: [
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppColors.error.withValues(alpha: 0.15),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.logout_rounded,
-                        color: AppColors.error, size: 20),
-                  ),
-                  title: Text(
-                    'Logout',
-                    style: TextStyle(
-                      fontFamily: AppStyles.fontFamily,
-                      fontSize: 14.5.sp, // LARGER Logout Font
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.error,
-                    ),
-                  ),
-                  onTap: () async {
-                    final bool? confirm = await showDialog<bool>(
-                      context: context,
-                      builder: (ctx) => AlertDialog(
-                        title: const Text('Logout'),
-                        content: const Text('Are you sure you want to log out?'),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(ctx, false),
-                            child: const Text('Cancel'),
-                          ),
-                          TextButton(
-                            onPressed: () => Navigator.pop(ctx, true),
-                            child: const Text('Logout',
-                                style: TextStyle(color: AppColors.error)),
-                          ),
-                        ],
+                      _buildSubItem(
+                        title: 'Manage Accounting',
+                        icon: Icons.assessment_outlined,
+                        textPrimary: textPrimary,
                       ),
-                    );
-
-                    if (confirm == true) {
-                      await StorageService.clearAuth();
-                      if (!context.mounted) return;
-                      Navigator.of(context).pushAndRemoveUntil(
-                        MaterialPageRoute(
-                          builder: (context) => const LoginScreen(),
-                        ),
-                        (route) => false,
-                      );
-                    }
-                  },
-                ),
-                SizedBox(height: 0.5.h),
-                Text(
-                  '© 2026 Copyright - Fablead Developers Technolab',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: AppStyles.fontFamily,
-                    fontSize: 9.5.sp, // LARGER Footer Font
-                    color: textSecondary,
+                      _buildSubItem(
+                        title: 'Receipt & Payment',
+                        icon: Icons.receipt_outlined,
+                        textPrimary: textPrimary,
+                      ),
+                      _buildSubItem(
+                        title: 'Expenses',
+                        icon: Icons.credit_card_outlined,
+                        textPrimary: textPrimary,
+                      ),
+                      _buildSubItem(
+                        title: 'Cash & Bank',
+                        icon: Icons.account_balance_wallet_outlined,
+                        textPrimary: textPrimary,
+                      ),
+                      _buildSubItem(
+                        title: 'Credit/Debit Notes',
+                        icon: Icons.subtitles_outlined,
+                        textPrimary: textPrimary,
+                      ),
+                      _buildSubItem(
+                        title: 'GST Reports',
+                        icon: Icons.analytics_outlined,
+                        textPrimary: textPrimary,
+                      ),
+                    ],
                   ),
-                ),
+
+                // Section 4: Reports
+                _buildSectionHeader('REPORTS & STATS', textSecondary),
+                _buildExpandableSection(
+                  title: 'Reports',
+                  icon: Icons.query_stats_outlined,
+                  isExpanded: _isReportsExpanded,
+                  onToggle: () => setState(() => _isReportsExpanded = !_isReportsExpanded),
+                  textPrimary: textPrimary,
+                  textSecondary: textSecondary,
+                  children: [
+                      _buildSubItem(
+                        title: 'Sales Report',
+                        icon: Icons.bar_chart_outlined,
+                        textPrimary: textPrimary,
+                      ),
+                      _buildSubItem(
+                        title: 'Sales Pool Report',
+                        icon: Icons.pie_chart_outline,
+                        textPrimary: textPrimary,
+                      ),
+                      _buildSubItem(
+                        title: 'TDS Report',
+                        icon: Icons.request_quote_outlined,
+                        textPrimary: textPrimary,
+                      ),
+                      _buildSubItem(
+                        title: 'Purchase Report',
+                        icon: Icons.receipt_long_outlined,
+                        textPrimary: textPrimary,
+                      ),
+                      _buildSubItem(
+                        title: 'Expenses Report',
+                        icon: Icons.account_balance_wallet_outlined,
+                        textPrimary: textPrimary,
+                      ),
+                      _buildSubItem(
+                        title: 'Profit & Loss Statement',
+                        icon: Icons.show_chart_outlined,
+                        textPrimary: textPrimary,
+                      ),
+                    ],
+                  ),
+
+                // Section 5: HR
+                _buildSectionHeader('HUMAN RESOURCES', textSecondary),
+                _buildExpandableSection(
+                  title: 'HR',
+                  icon: Icons.badge_outlined,
+                  isExpanded: _isHrExpanded,
+                  onToggle: () => setState(() => _isHrExpanded = !_isHrExpanded),
+                  textPrimary: textPrimary,
+                  textSecondary: textSecondary,
+                  children: [
+                      _buildSubItem(
+                        title: 'Staff Attendance',
+                        icon: Icons.check_circle_outline,
+                        textPrimary: textPrimary,
+                      ),
+                      _buildSubItem(
+                        title: 'Payroll Progress',
+                        icon: Icons.payments_outlined,
+                        textPrimary: textPrimary,
+                      ),
+                    ],
+                  ),
+
+                // Section 6: Settings
+                _buildSectionHeader('PREFERENCES', textSecondary),
+                _buildExpandableSection(
+                  title: 'Settings',
+                  icon: Icons.settings_outlined,
+                  isExpanded: _isSettingsExpanded,
+                  onToggle: () => setState(() => _isSettingsExpanded = !_isSettingsExpanded),
+                  textPrimary: textPrimary,
+                  textSecondary: textSecondary,
+                  children: [
+                      _buildSubItem(
+                        title: 'General Settings',
+                        icon: Icons.tune_outlined,
+                        textPrimary: textPrimary,
+                      ),
+                      _buildSubItem(
+                        title: 'Company Profile',
+                        icon: Icons.domain_outlined,
+                        textPrimary: textPrimary,
+                      ),
+                    ],
+                  ),
+
+                SizedBox(height: 1.h),
               ],
             ),
           ),
+
+          // 4. Simple Sober Footer
+          _buildSoberFooter(context, borderColor, textSecondary),
         ],
       ),
     );
   }
 
-  // --- Drawer Header Widget (Side-by-side Photo & User Info Row Layout with LARGER FONTS) ---
-  Widget _buildDrawerHeader(Color headerBg) {
-    final user = StorageService.getUser();
-    final String userName = user?.name?.isNotEmpty == true ? user!.name! : 'Main Branch';
-    final String userEmail = user?.email?.isNotEmpty == true ? user!.email! : 'admin@gmail.com';
+  // ==================== 1. SOBER HEADER ====================
+  Widget _buildSoberHeader(
+    BuildContext context,
+    Color headerBg,
+    Color borderColor,
+    Color textPrimary,
+    Color textSecondary,
+  ) {
+    final UserModel? user = StorageService.getUser();
+    final String userName =
+        user?.name?.isNotEmpty == true ? user!.name! : 'Main Branch';
+    final String userEmail =
+        user?.email?.isNotEmpty == true ? user!.email! : 'admin@gmail.com';
+    final String userRole =
+        user?.role?.isNotEmpty == true ? user!.role!.toUpperCase() : 'ADMIN';
     final String? profileImageUrl = user?.profileImageUrl;
 
     return Container(
       width: double.infinity,
       padding: EdgeInsets.only(
-        top: MediaQuery.of(context).padding.top + 2.h,
-        bottom: 2.2.h,
-        left: 4.5.w,
-        right: 4.5.w,
+        top: MediaQuery.of(context).padding.top + 1.2.h,
+        bottom: 1.8.h,
+        left: 4.w,
+        right: 3.w,
       ),
       decoration: BoxDecoration(
         color: headerBg,
+        border: Border(bottom: BorderSide(color: borderColor, width: 1)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Circular Profile Avatar or Image
+          // Clean Avatar
           Container(
-            width: 48,
-            height: 48,
-            decoration: const BoxDecoration(
-              color: AppColors.tidcraftOrange,
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
               shape: BoxShape.circle,
+              color: AppColors.primary,
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.3),
+                width: 2,
+              ),
             ),
             child: ClipOval(
               child: profileImageUrl != null && profileImageUrl.isNotEmpty
                   ? Image.network(
                       profileImageUrl,
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Center(
-                          child: Text(
-                            userName.isNotEmpty ? userName[0].toUpperCase() : 'A',
-                            style: TextStyle(
-                              fontFamily: AppStyles.fontFamily,
-                              fontSize: 16.sp,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                        );
-                      },
+                      errorBuilder: (context, error, stackTrace) =>
+                          _buildInitials(userName),
                     )
-                  : Center(
-                      child: Text(
-                        userName.isNotEmpty ? userName[0].toUpperCase() : 'A',
-                        style: TextStyle(
-                          fontFamily: AppStyles.fontFamily,
-                          fontSize: 16.sp,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
+                  : _buildInitials(userName),
             ),
           ),
-          const SizedBox(width: 14),
 
-          // User Name & Email Side-by-side with Profile Avatar (LARGER FONTS)
+          SizedBox(width: 3.w),
+
+          // User info
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  userName,
-                  style: TextStyle(
-                    fontFamily: AppStyles.fontFamily,
-                    fontSize: 16.5.sp, // LARGER Name Font
-                    fontWeight: FontWeight.w900,
-                    color: Colors.white,
-                  ),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        userName,
+                        style: TextStyle(
+                          fontFamily: AppStyles.fontFamily,
+                          fontSize: 13.5.sp,
+                          fontWeight: FontWeight.w700,
+                          color: textPrimary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    SizedBox(width: 1.5.w),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 1.5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        userRole,
+                        style: TextStyle(
+                          fontFamily: AppStyles.fontFamily,
+                          fontSize: 8.5.sp,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                SizedBox(height: 0.5.h),
+                SizedBox(height: 0.3.h),
                 Text(
                   userEmail,
                   style: TextStyle(
                     fontFamily: AppStyles.fontFamily,
-                    fontSize: 13.sp, // LARGER Email Font
-                    color: Colors.white70,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 11.sp,
+                    color: textSecondary,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -479,61 +496,100 @@ class _CustomDrawerState extends State<CustomDrawer> {
               ],
             ),
           ),
+
+          // Simple Close Button
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            icon: Icon(
+              Icons.close_rounded,
+              color: textSecondary,
+              size: 20,
+            ),
+            onPressed: () => Navigator.pop(context),
+          ),
         ],
       ),
     );
   }
 
-  // --- Single Menu Item (e.g. Dashboard) ---
-  Widget _buildSingleMenuItem({
-    required String title,
-    required IconData icon,
-    required Color textPrimary,
-  }) {
-    final isSelected = widget.activeItem == title;
-
-    return Container(
-      margin: EdgeInsets.symmetric(vertical: 0.5.h),
-      decoration: BoxDecoration(
-        color: isSelected
-            ? AppColors.tidcraftOrange.withValues(alpha: 0.18)
-            : Colors.transparent,
-        borderRadius: BorderRadius.circular(10),
-        border: isSelected
-            ? Border(
-                left: BorderSide(
-                    color: AppColors.tidcraftOrange, width: 4.w.clamp(3.5, 4)))
-            : null,
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: ListTile(
-          contentPadding: EdgeInsets.symmetric(horizontal: 3.5.w, vertical: 0.3.h),
-          leading: Icon(
-            icon,
-            color: isSelected ? AppColors.tidcraftOrange : textPrimary.withValues(alpha: 0.85),
-            size: 19.sp, // LARGER Icon
-          ),
-          title: Text(
-            title,
-            style: TextStyle(
-              fontFamily: AppStyles.fontFamily,
-              fontSize: 14.5.sp, // LARGER Menu Title Font
-              fontWeight: isSelected ? FontWeight.w900 : FontWeight.w800,
-              color: isSelected ? AppColors.tidcraftOrange : textPrimary,
-            ),
-          ),
-          onTap: () {
-            widget.onItemSelected?.call(title);
-            Navigator.pop(context);
-          },
+  Widget _buildInitials(String name) {
+    return Center(
+      child: Text(
+        name.isNotEmpty ? name[0].toUpperCase() : 'A',
+        style: TextStyle(
+          fontFamily: AppStyles.fontFamily,
+          fontSize: 16.sp,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
         ),
       ),
     );
   }
 
-  // --- Expandable Category Block (ERP, CRM, Reports, Accounting, HR, Settings) ---
-  Widget _buildExpandableCategory({
+  // ==================== SECTION HEADER ====================
+  Widget _buildSectionHeader(String title, Color textSecondary) {
+    return Padding(
+      padding: EdgeInsets.only(left: 3.5.w, top: 1.2.h, bottom: 0.4.h),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontFamily: AppStyles.fontFamily,
+          fontSize: 13.sp,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.8,
+          color: textSecondary.withValues(alpha: 0.75),
+        ),
+      ),
+    );
+  }
+
+  // ==================== 2. SIMPLE NAV ITEM ====================
+  Widget _buildSimpleNavItem({
+    required String title,
+    required IconData icon,
+    required IconData activeIcon,
+    required Color textPrimary,
+    required VoidCallback onTap,
+  }) {
+    final bool isSelected = widget.activeItem == title;
+
+    return Container(
+      margin: EdgeInsets.symmetric(vertical: 0.2.h),
+      decoration: BoxDecoration(
+        color: isSelected
+            ? AppColors.primary.withValues(alpha: 0.1)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(10),
+        border: isSelected
+            ? Border(
+                left: BorderSide(color: AppColors.primary, width: 3.5),
+              )
+            : null,
+      ),
+      child: ListTile(
+        dense: true,
+        contentPadding: EdgeInsets.symmetric(horizontal: 3.5.w, vertical: 0.1.h),
+        leading: Icon(
+          isSelected ? activeIcon : icon,
+          color: isSelected ? AppColors.primary : textPrimary.withValues(alpha: 0.8),
+          size: 20,
+        ),
+        title: Text(
+          title,
+          style: TextStyle(
+            fontFamily: AppStyles.fontFamily,
+            fontSize: 13.sp,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+            color: isSelected ? AppColors.primary : textPrimary,
+          ),
+        ),
+        onTap: onTap,
+      ),
+    );
+  }
+
+  // ==================== 3. EXPANDABLE SECTION ====================
+  Widget _buildExpandableSection({
     required String title,
     required IconData icon,
     required bool isExpanded,
@@ -542,79 +598,76 @@ class _CustomDrawerState extends State<CustomDrawer> {
     required Color textSecondary,
     required List<Widget> children,
   }) {
-    final isSelected = widget.activeItem == title;
+    final bool hasActiveChild = _hasActiveChild(title);
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          margin: EdgeInsets.symmetric(vertical: 0.5.h),
-          decoration: BoxDecoration(
-            color: isExpanded
-                ? textSecondary.withValues(alpha: 0.1)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(10),
-            border: isSelected
-                ? Border(
-                    left: BorderSide(
-                        color: AppColors.tidcraftOrange, width: 4))
-                : null,
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: ListTile(
-              contentPadding:
-                  EdgeInsets.symmetric(horizontal: 3.5.w, vertical: 0.3.h),
-              leading: Icon(
-                icon,
-                color: isSelected ? AppColors.tidcraftOrange : textPrimary.withValues(alpha: 0.85),
-                size: 19.sp, // LARGER Icon
-              ),
-              title: Text(
-                title,
-                style: TextStyle(
-                  fontFamily: AppStyles.fontFamily,
-                  fontSize: 14.5.sp, // LARGER Category Title Font
-                  fontWeight: isSelected ? FontWeight.w900 : FontWeight.w800,
-                  color: isSelected ? AppColors.tidcraftOrange : textPrimary,
+        InkWell(
+          onTap: onToggle,
+          borderRadius: BorderRadius.circular(10),
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 3.5.w, vertical: 1.h),
+            child: Row(
+              children: [
+                Icon(
+                  icon,
+                  color: hasActiveChild
+                      ? AppColors.primary
+                      : textPrimary.withValues(alpha: 0.8),
+                  size: 20,
                 ),
-              ),
-              trailing: Icon(
-                isExpanded
-                    ? Icons.keyboard_arrow_down_rounded
-                    : Icons.chevron_right_rounded,
-                color: textSecondary,
-                size: 20.sp, // LARGER Arrow
-              ),
-              onTap: onToggle,
+                SizedBox(width: 3.5.w),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      fontFamily: AppStyles.fontFamily,
+                      fontSize: 15.sp,
+                      fontWeight: hasActiveChild ? FontWeight.w700 : FontWeight.w600,
+                      color: hasActiveChild ? AppColors.primary : textPrimary,
+                    ),
+                  ),
+                ),
+                Icon(
+                  isExpanded
+                      ? Icons.keyboard_arrow_down_rounded
+                      : Icons.chevron_right_rounded,
+                  color: textSecondary,
+                  size: 20.sp,
+                ),
+              ],
             ),
           ),
         ),
-        if (isExpanded || _searchQuery.isNotEmpty)
+        if (isExpanded)
           Padding(
             padding: EdgeInsets.only(left: 4.w),
-            child: Column(children: children),
+            child: Column(
+              children: children,
+            ),
           ),
       ],
     );
   }
 
-  // --- Products Accordion matching UI Design Screenshots ---
+  // ==================== 4. PRODUCTS ACCORDION ====================
   Widget _buildProductsAccordion(
     Color textPrimary,
     Color textSecondary,
+    bool isDark,
   ) {
-    final isSelected = widget.activeItem == 'Products' ||
+    final bool isSelected = widget.activeItem == 'Products' ||
         widget.activeItem == 'All Products' ||
         widget.activeItem == 'New Product' ||
         widget.activeItem == 'All Raw Materials' ||
         widget.activeItem == 'Import Products';
 
     if (!_isProductsExpanded && !isSelected) {
-      // Collapsed View matching Image 1
-      return _buildSubMenuItem(
-        'Products',
-        Icons.inventory_2_outlined,
-        textPrimary,
+      return _buildSubItem(
+        title: 'Products',
+        icon: Icons.inventory_2_outlined,
+        textPrimary: textPrimary,
         onTap: () {
           setState(() {
             _isProductsExpanded = true;
@@ -623,45 +676,31 @@ class _CustomDrawerState extends State<CustomDrawer> {
       );
     }
 
-    // Expanded View matching Image 2
     return Container(
-      margin: EdgeInsets.symmetric(vertical: 0.5.h),
+      margin: EdgeInsets.symmetric(vertical: 0.3.h),
       decoration: BoxDecoration(
-        color: widget.isDarkMode
-            ? AppColors.tidcraftCardLight
-            : Colors.white,
+        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: widget.isDarkMode
-              ? AppColors.tidcraftBorder
-              : const Color(0xFFE2E8F0),
-        ),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Dark Navy Banner Header
           InkWell(
             onTap: () {
               setState(() {
                 _isProductsExpanded = !_isProductsExpanded;
               });
             },
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(7)),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: const BoxDecoration(
-                color: Color(0xFF1E293B), // Dark Navy Banner
-                borderRadius: BorderRadius.vertical(top: Radius.circular(7)),
-              ),
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.9.h),
               child: Row(
                 children: [
                   const Icon(
                     Icons.inventory_2_rounded,
-                    color: Colors.white,
-                    size: 20,
+                    color: AppColors.primary,
+                    size: 18,
                   ),
-                  const SizedBox(width: 10),
+                  SizedBox(width: 3.w),
                   Expanded(
                     child: Text(
                       'Products',
@@ -669,7 +708,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                         fontFamily: AppStyles.fontFamily,
                         fontSize: 14.sp,
                         fontWeight: FontWeight.w700,
-                        color: Colors.white,
+                        color: textPrimary,
                       ),
                     ),
                   ),
@@ -677,52 +716,28 @@ class _CustomDrawerState extends State<CustomDrawer> {
                     _isProductsExpanded
                         ? Icons.keyboard_arrow_down_rounded
                         : Icons.chevron_right_rounded,
-                    color: Colors.white70,
-                    size: 20,
+                    color: textSecondary,
+                    size: 17,
                   ),
                 ],
               ),
             ),
           ),
-
-          // Sub-item 1: All Products
-          _buildProductChildItem(
-            title: 'All Products',
-            destination: const ProductScreen(),
-            textPrimary: textPrimary,
-          ),
-
-          // Sub-item 2: New Product
-          _buildProductChildItem(
-            title: 'New Product',
-            destination: const AddProductScreen(),
-            textPrimary: textPrimary,
-          ),
-
-          // Sub-item 3: All Raw Materials
-          _buildProductChildItem(
-            title: 'All Raw Materials',
-            destination: const RawMaterialsScreen(),
-            textPrimary: textPrimary,
-          ),
-
-          // Sub-item 4: Import Products
-          _buildProductChildItem(
-            title: 'Import Products',
-            destination: const ImportProductScreen(),
-            textPrimary: textPrimary,
-          ),
+          _buildChildProductItem('All Products', const ProductScreen(), textPrimary),
+          _buildChildProductItem('New Product', const AddProductScreen(), textPrimary),
+          _buildChildProductItem('All Raw Materials', const RawMaterialsScreen(), textPrimary),
+          _buildChildProductItem('Import Products', const ImportProductScreen(), textPrimary),
         ],
       ),
     );
   }
 
-  Widget _buildProductChildItem({
-    required String title,
-    required Widget destination,
-    required Color textPrimary,
-  }) {
-    final isSelected = widget.activeItem == title;
+  Widget _buildChildProductItem(
+    String title,
+    Widget destination,
+    Color textPrimary,
+  ) {
+    final bool isSelected = widget.activeItem == title;
 
     return InkWell(
       onTap: () {
@@ -731,29 +746,25 @@ class _CustomDrawerState extends State<CustomDrawer> {
         Get.to(() => destination);
       },
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 0.8.h),
         child: Row(
           children: [
             Icon(
               isSelected
                   ? Icons.radio_button_checked_rounded
                   : Icons.radio_button_unchecked_rounded,
-              size: 16,
-              color: isSelected
-                  ? AppColors.tidcraftOrange
-                  : const Color(0xFF94A3B8),
+              size: 14,
+              color: isSelected ? AppColors.primary : const Color(0xFF94A3B8),
             ),
-            const SizedBox(width: 10),
+            SizedBox(width: 2.5.w),
             Expanded(
               child: Text(
                 title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontFamily: AppStyles.fontFamily,
-                  fontSize: 13.sp,
-                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                  color: isSelected ? AppColors.tidcraftOrange : textPrimary,
+                  fontSize: 14.sp,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  color: isSelected ? AppColors.primary : textPrimary,
                 ),
               ),
             ),
@@ -763,40 +774,42 @@ class _CustomDrawerState extends State<CustomDrawer> {
     );
   }
 
-  // --- Sub-menu Item ---
-  Widget _buildSubMenuItem(
-    String title,
-    IconData icon,
-    Color textPrimary, {
+  // ==================== 5. SUB NAV ITEM ====================
+  Widget _buildSubItem({
+    required String title,
+    required IconData icon,
+    required Color textPrimary,
     VoidCallback? onTap,
   }) {
-    final isSelected = widget.activeItem == title;
+    final bool isSelected = widget.activeItem == title;
 
     return Container(
-      margin: EdgeInsets.symmetric(vertical: 0.3.h),
+      margin: EdgeInsets.symmetric(vertical: 0.15.h),
       decoration: BoxDecoration(
         color: isSelected
-            ? AppColors.tidcraftOrange.withValues(alpha: 0.18)
+            ? AppColors.primary.withValues(alpha: 0.1)
             : Colors.transparent,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Material(
         color: Colors.transparent,
         child: ListTile(
-          contentPadding: EdgeInsets.symmetric(horizontal: 3.5.w),
           dense: true,
+          contentPadding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.05.h),
           leading: Icon(
             icon,
-            color: isSelected ? AppColors.tidcraftOrange : textPrimary.withValues(alpha: 0.75),
-            size: 15.sp, // LARGER Sub-menu Icon
+            size: 18,
+            color: isSelected
+                ? AppColors.primary
+                : textPrimary.withValues(alpha: 0.65),
           ),
           title: Text(
             title,
             style: TextStyle(
               fontFamily: AppStyles.fontFamily,
-              fontSize: 13.sp, // LARGER Sub-menu Font
-              fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
-              color: isSelected ? AppColors.tidcraftOrange : textPrimary,
+              fontSize: 14.sp,
+              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+              color: isSelected ? AppColors.primary : textPrimary,
             ),
           ),
           onTap: () {
@@ -812,14 +825,138 @@ class _CustomDrawerState extends State<CustomDrawer> {
     );
   }
 
-  // Search Helpers
-  bool _shouldShow(String title) {
-    if (_searchQuery.isEmpty) return true;
-    return title.toLowerCase().contains(_searchQuery);
+  // ==================== 6. SOBER FOOTER & LOGOUT ====================
+  Widget _buildSoberFooter(
+    BuildContext context,
+    Color borderColor,
+    Color textSecondary,
+  ) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.8.h),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: borderColor, width: 1)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Sober Logout Tile
+          ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.symmetric(horizontal: 2.w),
+            leading: const Icon(
+              Icons.logout_rounded,
+              color: AppColors.error,
+              size: 20,
+            ),
+            title: Text(
+              'Logout',
+              style: TextStyle(
+                fontFamily: AppStyles.fontFamily,
+                fontSize: 13.sp,
+                fontWeight: FontWeight.w700,
+                color: AppColors.error,
+              ),
+            ),
+            onTap: () => _handleLogout(context),
+          ),
+
+          Padding(
+            padding: EdgeInsets.only(bottom: 0.5.h),
+            child: Text(
+              'Fablead ERP • v1.0.0',
+              style: TextStyle(
+                fontFamily: AppStyles.fontFamily,
+                fontSize: 9.5.sp,
+                color: textSecondary.withValues(alpha: 0.7),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
-  bool _shouldShowAny(List<String> titles) {
-    if (_searchQuery.isEmpty) return true;
-    return titles.any((t) => t.toLowerCase().contains(_searchQuery));
+  Future<void> _handleLogout(BuildContext context) async {
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Logout'),
+        content: const Text('Are you sure you want to log out?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text(
+              'Logout',
+              style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await StorageService.clearAuth();
+      if (!context.mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (context) => const LoginScreen(),
+        ),
+        (route) => false,
+      );
+    }
+  }
+
+  // ==================== HELPERS ====================
+  bool _hasActiveChild(String groupTitle) {
+    if (groupTitle.contains('ERP')) {
+      return widget.activeItem == 'Products' ||
+          widget.activeItem == 'All Products' ||
+          widget.activeItem == 'New Product' ||
+          widget.activeItem == 'All Raw Materials' ||
+          widget.activeItem == 'Import Products' ||
+          widget.activeItem == 'Catalog Setup' ||
+          widget.activeItem == 'Sales & Bills' ||
+          widget.activeItem == 'Products Delivery' ||
+          widget.activeItem == 'Purchases' ||
+          widget.activeItem == 'Vendors' ||
+          widget.activeItem == 'Financers' ||
+          widget.activeItem == 'Manage Inventory' ||
+          widget.activeItem == 'Returns';
+    }
+    if (groupTitle.contains('CRM')) {
+      return [
+        'Customers',
+        'Manage Leads',
+        'Follow Ups',
+        'Meetings',
+        'Tickets'
+      ].contains(widget.activeItem);
+    }
+    if (groupTitle.contains('Reports')) {
+      return [
+        'Sales Report',
+        'Sales Pool Report',
+        'TDS Report',
+        'Purchase Report',
+        'Expenses Report',
+        'Profit & Loss Statement'
+      ].contains(widget.activeItem);
+    }
+    if (groupTitle.contains('Finance') || groupTitle.contains('Accounting')) {
+      return [
+        'Account Ledger',
+        'Manage Accounting',
+        'Receipt & Payment',
+        'Expenses',
+        'Cash & Bank',
+        'Credit/Debit Notes',
+        'GST Reports'
+      ].contains(widget.activeItem);
+    }
+    return false;
   }
 }
