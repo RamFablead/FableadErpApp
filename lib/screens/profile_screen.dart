@@ -13,9 +13,14 @@ import 'login_screen.dart';
 import 'products/view/product_screen.dart';
 import 'sales&bills/view/all_sales_screen.dart';
 
-/// Screen displaying the User Profile, Account Details & Preferences.
+/// Screen displaying the User Profile, Account Details & Preferences (View & Edit).
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+  final bool openEditDialog;
+
+  const ProfileScreen({
+    super.key,
+    this.openEditDialog = false,
+  });
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -23,6 +28,16 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final bool _isDarkMode = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.openEditDialog) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showEditProfileDialog();
+      });
+    }
+  }
 
   void _onBottomNavTapped(int index) {
     switch (index) {
@@ -126,7 +141,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: const CustomAppBar(
         title: 'Profile',
-        showBackButton: true,
+        showBackButton: false,
         isDarkMode: false,
       ),
       drawer: const CustomDrawer(
@@ -250,6 +265,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ),
                       ],
+                    ),
+                  ),
+
+                  SizedBox(height: 1.5.h),
+
+                  // Edit Profile Button
+                  OutlinedButton.icon(
+                    onPressed: _showEditProfileDialog,
+                    icon: const Icon(Icons.edit_outlined, size: 16, color: Color(0xFF1E2746)),
+                    label: const Text(
+                      'Edit Profile',
+                      style: TextStyle(
+                        fontFamily: AppStyles.fontFamily,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF1E2746),
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Color(0xFFCBD5E1)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     ),
                   ),
                 ],
@@ -423,6 +462,114 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditProfileDialog() {
+    final UserModel? user = StorageService.getUser();
+    final nameCtrl = TextEditingController(text: user?.name ?? 'Main Branch');
+    final emailCtrl = TextEditingController(text: user?.email ?? 'admin@gmail.com');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E2746).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.edit_rounded, color: Color(0xFF1E2746), size: 20),
+            ),
+            const SizedBox(width: 10),
+            const Text(
+              'Edit Profile',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF0F172A),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Full Name',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF475569),
+              ),
+            ),
+            const SizedBox(height: 6),
+            TextField(
+              controller: nameCtrl,
+              decoration: InputDecoration(
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+            const Text(
+              'Email Address',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF475569),
+              ),
+            ),
+            const SizedBox(height: 6),
+            TextField(
+              controller: emailCtrl,
+              decoration: InputDecoration(
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B))),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Profile changes noted. (Will be saved via API)'),
+                  backgroundColor: Color(0xFF16A34A),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFFA043),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text(
+              'Save Changes',
+              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+            ),
+          ),
         ],
       ),
     );

@@ -691,12 +691,11 @@ class _ProductScreenState extends State<ProductScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final bool canGoBack = Navigator.canPop(context);
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      appBar: CustomAppBar(
+      appBar: const CustomAppBar(
         title: 'All Products',
-        showBackButton: canGoBack,
+        showBackButton: false,
         isDarkMode: false,
       ),
       drawer: const CustomDrawer(isDarkMode: false, activeItem: 'Products'),
