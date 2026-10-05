@@ -678,7 +678,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                               userName,
                               style: TextStyle(
                                 fontFamily: AppStyles.fontFamily,
-                                fontSize: 13.5.sp,
+                                fontSize: 14.5.sp,
                                 fontWeight: FontWeight.w700,
                                 color: textPrimary,
                               ),
@@ -700,7 +700,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                               userRole,
                               style: TextStyle(
                                 fontFamily: AppStyles.fontFamily,
-                                fontSize: 8.5.sp,
+                                fontSize: 12.sp,
                                 fontWeight: FontWeight.w800,
                                 color: const Color(0xFFEA580C),
                               ),
@@ -713,7 +713,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                         userEmail,
                         style: TextStyle(
                           fontFamily: AppStyles.fontFamily,
-                          fontSize: 10.5.sp,
+                          fontSize: 13.5.sp,
                           color: textSecondary,
                         ),
                         maxLines: 1,
@@ -799,7 +799,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                     title,
                     style: TextStyle(
                       fontFamily: AppStyles.fontFamily,
-                      fontSize: 14.sp,
+                      fontSize: 14.5.sp,
                       fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
                       color: isSelected ? Colors.white : textPrimary,
                     ),
@@ -859,7 +859,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                         title,
                         style: TextStyle(
                           fontFamily: AppStyles.fontFamily,
-                          fontSize: 14.sp,
+                          fontSize: 14.5.sp,
                           fontWeight: FontWeight.w700,
                           color: isHeaderActive ? Colors.white : textPrimary,
                         ),
@@ -924,7 +924,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                 title,
                 style: TextStyle(
                   fontFamily: AppStyles.fontFamily,
-                  fontSize: 13.5.sp,
+                  fontSize: 14.5.sp,
                   fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                   color: isSelected ? const Color(0xFFFFA043) : textPrimary,
                 ),
@@ -1045,14 +1045,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
             ),
           ),
           SizedBox(height: 0.4.h),
-          Text(
-            'Fablead ERP • v1.0.0',
-            style: TextStyle(
-              fontFamily: AppStyles.fontFamily,
-              fontSize: 9.5.sp,
-              color: textSecondary.withValues(alpha: 0.7),
-            ),
-          ),
+
         ],
       ),
     );

@@ -130,6 +130,8 @@ class SalesCartItem {
   double discountPercent;
   double discountAmount;
   String description;
+  double cgstRate;
+  double sgstRate;
   final TextEditingController descController;
   final TextEditingController priceController;
   final TextEditingController discPercentController;
@@ -142,6 +144,8 @@ class SalesCartItem {
     this.discountPercent = 0.0,
     this.discountAmount = 0.0,
     this.description = '',
+    this.cgstRate = 9.0,
+    this.sgstRate = 9.0,
   })  : descController = TextEditingController(text: description),
         priceController = TextEditingController(text: price.toStringAsFixed(2)),
         discPercentController = TextEditingController(
@@ -167,10 +171,10 @@ class SalesCartItem {
 
   double get finalTotal => netAmount;
 
-  // Proper GST Calculations (18% Total = 9% CGST + 9% SGST)
-  double get cgstAmount => netAmount * 0.09;
-  double get sgstAmount => netAmount * 0.09;
-  double get gstTotal => netAmount * 0.18;
+  // Proper GST Calculations (CGST & SGST based on rate, default 9% + 9%)
+  double get cgstAmount => netAmount * (cgstRate / 100);
+  double get sgstAmount => netAmount * (sgstRate / 100);
+  double get gstTotal => cgstAmount + sgstAmount;
   double get withGstTotal => netAmount + gstTotal;
 
   void dispose() {
@@ -200,13 +204,20 @@ String _formatDate(DateTime dt) {
 }
 
 class SalesScreen extends StatefulWidget {
-  const SalesScreen({super.key});
+  final int? editOrderId;
+  const SalesScreen({super.key, this.editOrderId});
 
   @override
   State<SalesScreen> createState() => _SalesScreenState();
 }
 
 class _SalesScreenState extends State<SalesScreen> {
+  // Edit Mode state
+  bool _isLoadingEditOrder = false;
+  String? _editOrderError;
+  String? _editOrderNumber;
+  SalesDetailResponseModel? _loadedEditOrder;
+
   // Mode & Bill Type
   String _activeBillType = 'Quotation';
   String _selectedGstMode = 'Without GST';
@@ -303,6 +314,240 @@ class _SalesScreenState extends State<SalesScreen> {
     _fetchProducts();
     _fetchCategories();
     _fetchCustomers();
+    if (widget.editOrderId != null) {
+      _loadOrderForEdit(widget.editOrderId!);
+    }
+  }
+
+  DateTime? _parseOrderDate(String? dateStr) {
+    if (dateStr == null || dateStr.trim().isEmpty) return null;
+    final trimmed = dateStr.trim();
+    // 1. Check DD-MM-YYYY format (e.g. 05-10-2026)
+    final dmyRegex = RegExp(r'^(\d{2})[-/](\d{2})[-/](\d{4})');
+    final dmyMatch = dmyRegex.firstMatch(trimmed);
+    if (dmyMatch != null) {
+      final day = int.tryParse(dmyMatch.group(1)!);
+      final month = int.tryParse(dmyMatch.group(2)!);
+      final year = int.tryParse(dmyMatch.group(3)!);
+      if (day != null && month != null && year != null) {
+        return DateTime(year, month, day);
+      }
+    }
+    // 2. Check YYYY-MM-DD or ISO-8601
+    return DateTime.tryParse(trimmed);
+  }
+
+  Future<void> _loadOrderForEdit(int orderId) async {
+    setState(() {
+      _isLoadingEditOrder = true;
+      _editOrderError = null;
+    });
+
+    try {
+      final res = await _orderService.getSalesById(orderId);
+      if (!mounted) return;
+
+      if (!res.status || res.sales == null) {
+        setState(() {
+          _isLoadingEditOrder = false;
+          _editOrderError = 'Failed to load order details';
+        });
+        Get.snackbar(
+          'Error',
+          'Could not load sales details for #$orderId',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: const Color(0xFFEF4444),
+          colorText: Colors.white,
+        );
+        return;
+      }
+
+      final sales = res.sales!;
+      setState(() {
+        _loadedEditOrder = res;
+        _editOrderNumber = sales.orderNumber;
+
+        // 1. Order Date
+        final parsedDate = _parseOrderDate(sales.createdAt);
+        if (parsedDate != null) {
+          _orderDate = parsedDate;
+        }
+
+        // 2. Bill Type
+        if (sales.quotationStatus != null) {
+          final qs = sales.quotationStatus!.toLowerCase();
+          if (qs.contains('sale')) {
+            _activeBillType = 'Sales';
+          } else if (qs.contains('quote') || qs.contains('quotation')) {
+            _activeBillType = 'Quotation';
+          } else if (qs.contains('advance')) {
+            _activeBillType = 'Advance Receipt';
+          } else if (qs.contains('rental')) {
+            _activeBillType = 'Rental';
+          } else if (qs.contains('return')) {
+            _activeBillType = 'Sales Return';
+          }
+        }
+
+        // 3. GST Option: 'with_gst' -> 'With GST', else 'Without GST'
+        if (sales.gstOption != null &&
+            sales.gstOption!.toLowerCase().contains('with_gst')) {
+          _selectedGstMode = 'With GST';
+        } else {
+          _selectedGstMode = 'Without GST';
+        }
+
+        // 4. Customer Info
+        if (sales.user != null) {
+          _selectedCustomer = sales.user!.name;
+          _selectedCustomerId = sales.user!.id.toString();
+          _selectedCustomerModel = CustomerItemModel(
+            id: sales.user!.id,
+            name: sales.user!.name,
+            phone: sales.user!.phone,
+            email: sales.user!.email,
+            gstNumber: sales.user!.gstNumber,
+            panNumber: sales.user!.panNumber,
+            profileImageUrl: sales.user!.profileImageUrl,
+          );
+          if (sales.user!.phone != null && sales.user!.phone!.trim().isNotEmpty) {
+            _phoneController.text = sales.user!.phone!.trim();
+          }
+          if (sales.user!.gstNumber != null &&
+              sales.user!.gstNumber!.trim().isNotEmpty) {
+            _customerGstController.text = sales.user!.gstNumber!.trim();
+          }
+        } else if (sales.userName != null && sales.userName!.trim().isNotEmpty) {
+          _selectedCustomer = sales.userName!;
+          if (sales.userId != null) {
+            _selectedCustomerId = sales.userId.toString();
+          }
+          if (sales.userPhone != null && sales.userPhone!.trim().isNotEmpty) {
+            _phoneController.text = sales.userPhone!.trim();
+          }
+          if (sales.userGstNumber != null &&
+              sales.userGstNumber!.trim().isNotEmpty) {
+            _customerGstController.text = sales.userGstNumber!.trim();
+          }
+        }
+
+        // 5. Payment Method
+        if (sales.paymentMethod != null &&
+            sales.paymentMethod!.trim().isNotEmpty) {
+          final pm = sales.paymentMethod!.trim().toLowerCase();
+          if (pm.contains('cash') && pm.contains('online')) {
+            _selectedPaymentMode = 'Cash+Online';
+          } else if (pm == 'cash') {
+            _selectedPaymentMode = 'Cash';
+          } else if (pm.contains('debit') || pm.contains('card')) {
+            _selectedPaymentMode = 'Debit';
+          } else if (pm.contains('scan') ||
+              pm.contains('qr') ||
+              pm.contains('upi')) {
+            _selectedPaymentMode = 'Scan';
+          } else if (pm.contains('emi')) {
+            _selectedPaymentMode = 'EMI';
+          } else if (pm.contains('later')) {
+            _selectedPaymentMode = 'Pay Later';
+          }
+        }
+
+        // 6. Remarks, Delivery Cost, Deposit, TDS, Discount
+        if (sales.remarks != null && sales.remarks!.trim().isNotEmpty) {
+          _remarksController.text = sales.remarks!.trim();
+        }
+        if (sales.shipping > 0) {
+          _deliveryCostController.text = sales.shipping.toStringAsFixed(2);
+        }
+        if (sales.depositAmount > 0) {
+          _depositController.text = sales.depositAmount.toStringAsFixed(2);
+        }
+        if (sales.tdsPercentage > 0) {
+          _tdsPercentController.text = sales.tdsPercentage.toStringAsFixed(0);
+        }
+        if (sales.discountPercentage > 0) {
+          _discountPercentController.text =
+              sales.discountPercentage.toStringAsFixed(0);
+        } else if (sales.discount > 0) {
+          _discountPercentController.text = sales.discount.toStringAsFixed(0);
+        }
+
+        // 7. Order Items / Cart Items
+        final itemsToLoad =
+            res.orderItems.isNotEmpty ? res.orderItems : sales.orderItems;
+        _cart.clear();
+        for (final item in _cartItems.values) {
+          item.dispose();
+        }
+        _cartItems.clear();
+
+        for (final item in itemsToLoad) {
+          final pid = item.productId ?? item.id;
+          final key = pid.toString();
+          final qty = item.quantity.toInt() > 0 ? item.quantity.toInt() : 1;
+          _cart[key] = qty;
+
+          ProductItemModel productModel;
+          if (item.product != null) {
+            productModel = item.product!;
+          } else {
+            ProductItemModel? found;
+            for (final p in _allProducts) {
+              if (p.id == pid) {
+                found = p;
+                break;
+              }
+            }
+            productModel = found ??
+                ProductItemModel(
+                  id: pid,
+                  name: item.productName.isNotEmpty
+                      ? item.productName
+                      : 'Product #$pid',
+                  price: item.price.toStringAsFixed(2),
+                );
+          }
+
+          // Extract GST rates if available
+          double cgst = 9.0;
+          double sgst = 9.0;
+          for (final tax in item.productGstDetails) {
+            if (tax.taxName.toUpperCase().contains('CGST')) {
+              cgst = tax.taxRate;
+            } else if (tax.taxName.toUpperCase().contains('SGST')) {
+              sgst = tax.taxRate;
+            }
+          }
+
+          _cartItems[key] = SalesCartItem(
+            product: productModel,
+            quantity: qty,
+            price: item.price > 0 ? item.price : productModel.numericPrice,
+            discountPercent: item.discountPercentage,
+            discountAmount: item.discountAmount,
+            description: item.description ?? '',
+            cgstRate: cgst,
+            sgstRate: sgst,
+          );
+        }
+
+        _isLoadingEditOrder = false;
+      });
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoadingEditOrder = false;
+          _editOrderError = e.toString();
+        });
+        Get.snackbar(
+          'Error',
+          'Failed to load order: $e',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: const Color(0xFFEF4444),
+          colorText: Colors.white,
+        );
+      }
+    }
   }
 
   Future<void> _fetchCustomers() async {
@@ -469,6 +714,7 @@ class _SalesScreenState extends State<SalesScreen> {
   ];
 
   final List<String> _billTypes = [
+    'Sales',
     'Quotation',
     'Advance Receipt',
     'Rental',
@@ -572,6 +818,9 @@ class _SalesScreenState extends State<SalesScreen> {
 
   // Dynamic reference numbers based on mode
   String get _dynamicOrderBadge {
+    if (_editOrderNumber != null && _editOrderNumber!.isNotEmpty) {
+      return 'Order No: $_editOrderNumber';
+    }
     switch (_activeBillType) {
       case 'Quotation':
         return 'Quotation No: Q-13';
@@ -589,6 +838,9 @@ class _SalesScreenState extends State<SalesScreen> {
 
   // Dynamic bottom action button label based on mode
   String get _dynamicGenerateButtonLabel {
+    if (widget.editOrderId != null) {
+      return 'Update Order';
+    }
     switch (_activeBillType) {
       case 'Quotation':
         return 'Generate Quote';
@@ -1548,13 +1800,28 @@ class _SalesScreenState extends State<SalesScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: CustomAppBar(
-        title: 'Sales & Bills',
+        title: widget.editOrderId != null
+            ? (_editOrderNumber != null
+                ? 'Edit Sale • $_editOrderNumber'
+                : 'Edit Sale Order')
+            : 'Sales & Bills',
         showBackButton: canGoBack,
         isDarkMode: false,
       ),
       drawer: const CustomDrawer(isDarkMode: false, activeItem: 'Sales'),
       body: Stack(
         children: [
+          if (_isLoadingEditOrder)
+            const Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: LinearProgressIndicator(
+                color: Color(0xFFFF6B2C),
+                backgroundColor: Color(0xFFFED7AA),
+                minHeight: 3,
+              ),
+            ),
           SingleChildScrollView(
             padding: EdgeInsets.fromLTRB(
               16,
@@ -3518,7 +3785,7 @@ class _SalesScreenState extends State<SalesScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'CGST: 9.00% (${_formatCurrency(item.cgstAmount)})',
+                    'CGST: ${item.cgstRate.toStringAsFixed(2)}% (${_formatCurrency(item.cgstAmount)})',
                     style: const TextStyle(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w500,
@@ -3527,7 +3794,7 @@ class _SalesScreenState extends State<SalesScreen> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'SGST: 9.00% (${_formatCurrency(item.sgstAmount)})',
+                    'SGST: ${item.sgstRate.toStringAsFixed(2)}% (${_formatCurrency(item.sgstAmount)})',
                     style: const TextStyle(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w500,

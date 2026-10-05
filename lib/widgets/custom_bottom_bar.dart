@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../core/constants/app_colors.dart';
 import '../core/constants/app_styles.dart';
 
 /// Reusable Custom Bottom Navigation Bar for Fablead ERP.
@@ -24,8 +25,8 @@ class CustomBottomBar extends StatelessWidget {
     final navItems = [
       {
         'label': 'Dashboard',
-        'activeIcon': Icons.dashboard_rounded,
-        'inactiveIcon': Icons.dashboard_outlined,
+        'activeIcon': Icons.grid_view_rounded,
+        'inactiveIcon': Icons.grid_view_outlined,
       },
       {
         'label': 'Products',
@@ -44,23 +45,24 @@ class CustomBottomBar extends StatelessWidget {
       },
     ];
 
-    final Color barBg = isDarkMode ? const Color(0xFF1E293B) : Colors.white;
-    const Color activeColor = Color(0xFFFFA043); // Brand Primary Orange
+    final Color barBg = isDarkMode ? AppColors.tidcraftCardBg : Colors.white;
+    const Color activeColor = AppColors.primary;
     final Color inactiveColor =
-        isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+        isDarkMode ? const Color(0xFF64748B) : const Color(0xFF94A3B8);
     final Color borderColor =
-        isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+        isDarkMode ? AppColors.tidcraftBorder : const Color(0xFFE2E8F0);
     final Color activeTextColor =
         isDarkMode ? Colors.white : const Color(0xFF0F172A);
 
     return Container(
       decoration: BoxDecoration(
         color: barBg,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: isDarkMode ? 0.35 : 0.05),
-            blurRadius: 16,
-            offset: const Offset(0, -3),
+            color: Colors.black.withValues(alpha: isDarkMode ? 0.35 : 0.06),
+            blurRadius: 20,
+            offset: const Offset(0, -4),
           ),
         ],
         border: Border(
@@ -70,8 +72,8 @@ class CustomBottomBar extends StatelessWidget {
       child: SafeArea(
         top: false,
         child: Container(
-          height: 64,
-          padding: const EdgeInsets.symmetric(horizontal: 8),
+          height: 66,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Row(
             children: List.generate(navItems.length, (index) {
               final item = navItems[index];
@@ -83,21 +85,33 @@ class CustomBottomBar extends StatelessWidget {
                   splashColor: Colors.transparent,
                   highlightColor: Colors.transparent,
                   child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // Active Pill Capsule for Icon
+                      // Top Active Indicator Line
                       AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
+                        duration: const Duration(milliseconds: 250),
                         curve: Curves.easeInOut,
-                        width: isSelected ? 52 : 36,
-                        height: 30,
+                        width: isSelected ? 24 : 0,
+                        height: 3,
+                        decoration: BoxDecoration(
+                          color: isSelected ? activeColor : Colors.transparent,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+
+                      // Center Icon with Animated Capsule Pill
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 220),
+                        curve: Curves.easeInOut,
+                        width: isSelected ? 54 : 38,
+                        height: 32,
                         decoration: BoxDecoration(
                           color: isSelected
                               ? (isDarkMode
-                                  ? activeColor.withValues(alpha: 0.22)
+                                  ? activeColor.withValues(alpha: 0.20)
                                   : const Color(0xFFFFF2E6))
                               : Colors.transparent,
-                          borderRadius: BorderRadius.circular(15),
+                          borderRadius: BorderRadius.circular(16),
                         ),
                         child: Center(
                           child: Icon(
@@ -105,24 +119,28 @@ class CustomBottomBar extends StatelessWidget {
                                 ? item['activeIcon']
                                 : item['inactiveIcon']) as IconData,
                             color: isSelected ? activeColor : inactiveColor,
-                            size: 22,
+                            size: 21,
                           ),
                         ),
                       ),
-                      const SizedBox(height: 3),
-                      // Label
-                      Text(
-                        item['label'] as String,
-                        style: TextStyle(
-                          fontFamily: AppStyles.fontFamily,
-                          fontSize: 11.5,
-                          fontWeight:
-                              isSelected ? FontWeight.w700 : FontWeight.w500,
-                          color: isSelected ? activeTextColor : inactiveColor,
-                          letterSpacing: -0.2,
+
+                      // Bottom Label Text
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Text(
+                          item['label'] as String,
+                          style: TextStyle(
+                            fontFamily: AppStyles.fontFamily,
+                            fontSize: 11.5,
+                            fontWeight: isSelected
+                                ? FontWeight.w800
+                                : FontWeight.w500,
+                            color: isSelected ? activeTextColor : inactiveColor,
+                            letterSpacing: -0.1,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
@@ -135,3 +153,4 @@ class CustomBottomBar extends StatelessWidget {
     );
   }
 }
+

@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sizer/sizer.dart';
+
 import '../core/constants/app_colors.dart';
 import '../core/constants/app_styles.dart';
+import '../models/dashboard_model.dart';
+import '../services/dashboard_service.dart';
 import '../widgets/custom_app_bar.dart';
 import '../widgets/custom_bottom_bar.dart';
 import '../widgets/custom_drawer.dart';
 import 'products/view/product_screen.dart';
 import 'profile_screen.dart';
 import 'sales&bills/view/all_sales_screen.dart';
-import 'sales&bills/view/sales_screen.dart';
+import 'sales&bills/view/sales_detail_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -23,10 +26,77 @@ class _HomeScreenState extends State<HomeScreen> {
   int _selectedBottomNavIndex = 0;
   String _selectedDatePeriod = 'Thu, 26 Sep 2026';
   String _selectedSalesPeriod = 'This Month';
-  String _selectedTrendPeriod = 'Last 7 Days';
+  String _selectedTrendPeriod = 'This Year';
   String _activeDrawerItem = 'Dashboard';
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  final DashboardService _dashboardService = DashboardService();
+
+  bool _isLoadingDashboard = false;
+  DashboardDataModel? _dashboardData;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchDashboard();
+  }
+
+  Future<void> _fetchDashboard() async {
+    setState(() {
+      _isLoadingDashboard = true;
+    });
+
+    try {
+      final response = await _dashboardService.getDashboardData();
+      if (response.status && response.data != null && mounted) {
+        setState(() {
+          _dashboardData = response.data;
+          _isLoadingDashboard = false;
+        });
+      } else if (mounted) {
+        setState(() {
+          _isLoadingDashboard = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoadingDashboard = false;
+        });
+      }
+    }
+  }
+
+  String _formatCurrency(double amount) {
+    final symbol = _dashboardData?.currencySymbol ?? '₹';
+    final parts = amount.toStringAsFixed(2).split('.');
+    final integerPart = parts[0];
+    final decimalPart = parts[1];
+
+    final reg = RegExp(r'(\d+?)(?=(\d{3})+(?!\d))');
+    final formattedInt = integerPart.replaceAllMapped(
+        reg, (Match m) => '${m[1]},');
+
+    return '$symbol $formattedInt.$decimalPart';
+  }
+
+  String _formatDate(String dateStr) {
+    if (dateStr.isEmpty) return 'Today';
+    try {
+      final dt = DateTime.parse(dateStr.replaceAll(' ', 'T'));
+      final now = DateTime.now();
+      if (dt.year == now.year && dt.month == now.month && dt.day == now.day) {
+        return 'Today';
+      }
+      const months = [
+        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      ];
+      return '${months[dt.month - 1]} ${dt.day}';
+    } catch (_) {
+      return dateStr.length > 10 ? dateStr.substring(0, 10) : dateStr;
+    }
+  }
 
   void _updateDatePeriod(String value) {
     setState(() {
@@ -86,40 +156,65 @@ class _HomeScreenState extends State<HomeScreen> {
         },
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.2.h),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 1. Greeting & Date Selector Row (PERFECT BALANCED FONTS)
-              _buildGreetingAndDateRow(textPrimary, textSecondary, cardBg, borderColor),
-              SizedBox(height: 2.h),
+        child: RefreshIndicator(
+          onRefresh: _fetchDashboard,
+          color: AppColors.tidcraftOrange,
+          backgroundColor: cardBg,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics()),
+            padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.2.h),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (_isLoadingDashboard)
+                  Padding(
+                    padding: EdgeInsets.only(bottom: 1.h),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: const LinearProgressIndicator(
+                        minHeight: 3,
+                        backgroundColor: Colors.transparent,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                            AppColors.tidcraftOrange),
+                      ),
+                    ),
+                  ),
 
-              // 2. Main Quick Navigation Modules (Products, Sales & Bills, Profile)
-              _buildMainModulesGrid(cardBg, cardBgLight, borderColor, textPrimary, textSecondary),
-              SizedBox(height: 2.h),
+                // 1. Greeting & Date Selector Row
+                _buildGreetingAndDateRow(
+                    textPrimary, textSecondary, cardBg, borderColor),
+                SizedBox(height: 2.h),
+                // 3. Top 2x2 Metric Grid Cards
+                _buildTop2x2MetricGrid(
+                    cardBg, borderColor, textPrimary, textSecondary),
+                SizedBox(height: 2.h),
 
-              // 3. Top 2x2 Metric Grid Cards
-              _buildTop2x2MetricGrid(cardBg, borderColor, textPrimary, textSecondary),
-              SizedBox(height: 2.h),
+                // 4. Sales Target Progress Card
+                _buildSalesTargetCard(
+                    cardBg, cardBgLight, borderColor, textPrimary,
+                    textSecondary),
+                SizedBox(height: 2.h),
 
-              // 4. Sales & Purchases Target Progress Card (BALANCED FONTS)
-              _buildSalesAndPurchasesTargetCard(cardBg, cardBgLight, borderColor, textPrimary, textSecondary),
-              SizedBox(height: 2.h),
+                // 5. Recent Products Card
+                _buildTop5ProductsCard(
+                    cardBg, cardBgLight, borderColor, textPrimary,
+                    textSecondary),
+                SizedBox(height: 2.h),
 
-              // 5. Top 5 Sales (Products) Card (BALANCED FONTS)
-              _buildTop5ProductsCard(cardBg, cardBgLight, borderColor, textPrimary, textSecondary),
-              SizedBox(height: 2.h),
+                // 6. Sales Trend Line Chart Card
+                _buildSalesTrendChartCard(
+                    cardBg, cardBgLight, borderColor, textPrimary,
+                    textSecondary),
+                SizedBox(height: 2.h),
 
-              // 6. Sales Trend Line Chart Card (BALANCED FONTS & PAINTER)
-              _buildSalesTrendChartCard(cardBg, cardBgLight, borderColor, textPrimary, textSecondary),
-              SizedBox(height: 2.h),
-
-              // 7. Recent Sales Cards (BALANCED FONTS)
-              _buildRecentTransactionsSection(cardBg, cardBgLight, borderColor, textPrimary, textSecondary),
-              SizedBox(height: 2.5.h),
-            ],
+                // 7. Recent Sales Cards
+                _buildRecentTransactionsSection(
+                    cardBg, cardBgLight, borderColor, textPrimary,
+                    textSecondary),
+                SizedBox(height: 2.5.h),
+              ],
+            ),
           ),
         ),
       ),
@@ -137,14 +232,28 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
 
+  // --- 2. Greeting & Date Pill Row (LARGER READABLE FONTS) ---
+  String _getDynamicGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour >= 4 && hour < 12) {
+      return 'Good Morning,';
+    } else if (hour >= 12 && hour < 17) {
+      return 'Good Afternoon,';
+    } else if (hour >= 17 && hour < 21) {
+      return 'Good Evening,';
+    } else {
+      return 'Good Night,';
+    }
+  }
 
-  // --- 2. Greeting & Date Pill Row (PERFECT PROPORTIONS) ---
   Widget _buildGreetingAndDateRow(
-    Color textPrimary,
-    Color textSecondary,
-    Color cardBg,
-    Color borderColor,
-  ) {
+      Color textPrimary,
+      Color textSecondary,
+      Color cardBg,
+      Color borderColor,
+      ) {
+    final greeting = _getDynamicGreeting();
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -153,10 +262,10 @@ class _HomeScreenState extends State<HomeScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Good Morning,',
+              greeting,
               style: TextStyle(
                 fontFamily: AppStyles.fontFamily,
-                fontSize: 16.sp, // BALANCED PERFECT FONT SIZE
+                fontSize: 18.5.sp,
                 fontWeight: FontWeight.bold,
                 color: textPrimary,
               ),
@@ -166,7 +275,7 @@ class _HomeScreenState extends State<HomeScreen> {
               'Welcome back!',
               style: TextStyle(
                 fontFamily: AppStyles.fontFamily,
-                fontSize: 11.5.sp, // BALANCED SUBTITLE FONT
+                fontSize: 14.sp,
                 color: textSecondary,
                 fontWeight: FontWeight.w500,
               ),
@@ -175,205 +284,58 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
 
         // Date Dropdown Pill
-        PopupMenuButton<String>(
-          color: cardBg,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          onSelected: _updateDatePeriod,
-          itemBuilder: (context) => [
-            'Thu, 26 Sep 2026',
-            'Fri, 27 Sep 2026',
-            'Sat, 28 Sep 2026',
-          ]
-              .map((date) => PopupMenuItem(
-                    value: date,
-                    child: Text(date,
-                        style: TextStyle(
-                            color: textPrimary,
-                            fontSize: 10.5.sp,
-                            fontWeight: FontWeight.w500)),
-                  ))
-              .toList(),
-          child: Container(
-            padding: EdgeInsets.symmetric(horizontal: 2.5.w, vertical: 0.8.h),
-            decoration: BoxDecoration(
-              color: cardBg,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: borderColor),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.calendar_today_outlined,
-                    color: textSecondary, size: 12.sp),
-                SizedBox(width: 1.5.w),
-                Text(
-                  _selectedDatePeriod,
-                  style: TextStyle(
-                    fontFamily: AppStyles.fontFamily,
-                    fontSize: 10.5.sp, // BALANCED FONT SIZE
-                    fontWeight: FontWeight.w600,
-                    color: textPrimary,
-                  ),
-                ),
-                SizedBox(width: 1.w),
-                Icon(Icons.keyboard_arrow_down_rounded,
-                    color: textSecondary, size: 13.sp),
-              ],
-            ),
-          ),
-        ),
+
       ],
     );
   }
 
-  // --- Quick Access Main Navigation Modules Grid ---
-  Widget _buildMainModulesGrid(
-    Color cardBg,
-    Color cardBgLight,
-    Color borderColor,
-    Color textPrimary,
-    Color textSecondary,
-  ) {
-    final modules = [
-      {
-        'title': 'Products',
-        'subtitle': 'Manage Products',
-        'icon': Icons.inventory_2_rounded,
-        'color': const Color(0xFFFF6B2C),
-        'bg': const Color(0xFFFFF4EE),
-        'onTap': () => Get.to(() => const ProductScreen()),
-      },
-      {
-        'title': 'Sales & Bills',
-        'subtitle': 'Manage Invoices',
-        'icon': Icons.receipt_long_rounded,
-        'color': const Color(0xFF16A34A),
-        'bg': const Color(0xFFF0FDF4),
-        'onTap': () => Get.to(() => const AllSalesScreen()),
-      },
-      {
-        'title': 'Profile',
-        'subtitle': 'Account Info',
-        'icon': Icons.person_rounded,
-        'color': const Color(0xFF2563EB),
-        'bg': const Color(0xFFEFF6FF),
-        'onTap': () => Get.to(() => const ProfileScreen()),
-      },
-    ];
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: EdgeInsets.only(bottom: 1.h),
-          child: Text(
-            'QUICK ACCESS MODULES',
-            style: TextStyle(
-              fontFamily: AppStyles.fontFamily,
-              fontSize: 10.5.sp,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.1,
-              color: textSecondary,
-            ),
-          ),
-        ),
-        Row(
-          children: modules.map((mod) {
-            final color = mod['color'] as Color;
-            final bg = mod['bg'] as Color;
-
-            return Expanded(
-              child: GestureDetector(
-                onTap: mod['onTap'] as VoidCallback,
-                child: Container(
-                  margin: EdgeInsets.only(right: mod == modules.last ? 0 : 2.w),
-                  padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 1.5.h),
-                  decoration: BoxDecoration(
-                    color: _isDarkMode ? cardBg : bg,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: _isDarkMode ? borderColor : color.withValues(alpha: 0.3),
-                      width: 1.2,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: color.withValues(alpha: 0.1),
-                        blurRadius: 8,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    children: [
-                      Container(
-                        padding: EdgeInsets.all(2.w),
-                        decoration: BoxDecoration(
-                          color: color,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          mod['icon'] as IconData,
-                          color: Colors.white,
-                          size: 16.sp,
-                        ),
-                      ),
-                      SizedBox(height: 1.h),
-                      Text(
-                        mod['title'] as String,
-                        style: TextStyle(
-                          fontFamily: AppStyles.fontFamily,
-                          fontSize: 11.5.sp,
-                          fontWeight: FontWeight.w800,
-                          color: textPrimary,
-                        ),
-                        textAlign: TextAlign.center,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      SizedBox(height: 0.3.h),
-                      Text(
-                        mod['subtitle'] as String,
-                        style: TextStyle(
-                          fontFamily: AppStyles.fontFamily,
-                          fontSize: 9.sp,
-                          fontWeight: FontWeight.w500,
-                          color: textSecondary,
-                        ),
-                        textAlign: TextAlign.center,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          }).toList(),
-        ),
-      ],
-    );
-  }
-
-  // --- 3. Top 2x2 Metric Grid Cards (BALANCED CLEAN FONTS) ---
+  // --- 3. Top 2x2 Metric Grid Cards (NO PURCHASE / NO VENDOR, LARGER FONTS) ---
   Widget _buildTop2x2MetricGrid(
     Color cardBg,
     Color borderColor,
     Color textPrimary,
     Color textSecondary,
   ) {
+    final totals = _dashboardData?.totals;
+    final counts = _dashboardData?.counts;
+
+    final salesVal = totals != null
+        ? _formatCurrency(totals.sales)
+        : '₹ 49,00,258.99';
+    final salesSubtitle = counts != null
+        ? '↑ ${counts.salesInvoices} Invoices'
+        : '↑ 190 Invoices';
+
+    final invoiceVal = counts != null
+        ? '${counts.salesInvoices} Invoices'
+        : '190 Invoices';
+    const invoiceSubtitle = 'Total Invoices Placed';
+
+    final expenseVal = totals != null
+        ? _formatCurrency(totals.expense)
+        : '₹ 32,000.00';
+    const expenseSubtitle = 'Total Expenses';
+
+    final customersVal = counts != null
+        ? '${counts.customers} Clients'
+        : '42 Clients';
+    const customersSubtitle = 'Active Customers';
+
     return GridView.count(
       crossAxisCount: 2,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       crossAxisSpacing: 3.w,
       mainAxisSpacing: 1.5.h,
-      childAspectRatio: 1.35, // Clean balanced proportioned height
+      childAspectRatio: 1.25,
+      // Clean proportion for larger bold fonts
       children: [
         // 1. Total Sales Card
         _buildMetricGridCard(
           title: 'Total Sales',
-          value: '₹ 4,82,650',
-          growthText: '↑ 12% vs last week',
+          value: salesVal,
+          growthText: salesSubtitle,
           icon: Icons.receipt_long_rounded,
           iconBgColor: AppColors.orangeAccent,
           cardBg: cardBg,
@@ -383,41 +345,41 @@ class _HomeScreenState extends State<HomeScreen> {
           onTap: () => Get.to(() => const AllSalesScreen()),
         ),
 
-        // 2. All Products Card
+        // 2. Sales Invoices Card (Replaces Purchase)
         _buildMetricGridCard(
-          title: 'All Products',
-          value: '1,420 Items',
-          growthText: '↑ Active Catalog',
-          icon: Icons.inventory_2_rounded,
-          iconBgColor: AppColors.tidcraftGreen,
+          title: 'Sales Invoices',
+          value: invoiceVal,
+          growthText: invoiceSubtitle,
+          icon: Icons.point_of_sale_rounded,
+          iconBgColor: const Color(0xFF10B981),
           cardBg: cardBg,
           borderColor: borderColor,
           textPrimary: textPrimary,
           textSecondary: textSecondary,
-          onTap: () => Get.to(() => const ProductScreen()),
+          onTap: () => Get.to(() => const AllSalesScreen()),
         ),
 
-        // 3. New Bill / Sale Card
+        // 3. Total Expense Card
         _buildMetricGridCard(
-          title: 'Create Bill',
-          value: 'New Invoice',
-          growthText: 'Quick Billing',
-          icon: Icons.add_shopping_cart_rounded,
-          iconBgColor: AppColors.tidcraftPurple,
+          title: 'Total Expense',
+          value: expenseVal,
+          growthText: expenseSubtitle,
+          icon: Icons.account_balance_wallet_rounded,
+          iconBgColor: const Color(0xFFEF4444),
           cardBg: cardBg,
           borderColor: borderColor,
           textPrimary: textPrimary,
           textSecondary: textSecondary,
-          onTap: () => Get.to(() => const SalesScreen()),
+          onTap: null,
         ),
 
-        // 4. Account Profile Card
+        // 4. Customers Card (Vendor completely removed)
         _buildMetricGridCard(
-          title: 'Profile & Info',
-          value: 'Main Branch',
-          growthText: 'View Settings',
-          icon: Icons.person_rounded,
-          iconBgColor: AppColors.tidcraftOrange,
+          title: 'Customers',
+          value: customersVal,
+          growthText: customersSubtitle,
+          icon: Icons.groups_rounded,
+          iconBgColor: const Color(0xFF3B82F6),
           cardBg: cardBg,
           borderColor: borderColor,
           textPrimary: textPrimary,
@@ -444,7 +406,7 @@ class _HomeScreenState extends State<HomeScreen> {
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
       child: Container(
-        padding: EdgeInsets.all(3.w),
+        padding: EdgeInsets.all(3.2.w),
         decoration: BoxDecoration(
           color: cardBg,
           borderRadius: BorderRadius.circular(14),
@@ -466,12 +428,12 @@ class _HomeScreenState extends State<HomeScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Container(
-                  padding: EdgeInsets.all(1.8.w),
+                  padding: EdgeInsets.all(2.w),
                   decoration: BoxDecoration(
                     color: iconBgColor,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Icon(icon, color: Colors.white, size: 14.sp),
+                  child: Icon(icon, color: Colors.white, size: 16.sp),
                 ),
                 Row(
                   children: [
@@ -479,14 +441,14 @@ class _HomeScreenState extends State<HomeScreen> {
                       title,
                       style: TextStyle(
                         fontFamily: AppStyles.fontFamily,
-                        fontSize: 11.sp, // BALANCED PERFECT FONT
-                        fontWeight: FontWeight.w600,
+                        fontSize: 12.5.sp, // INCREASED FONT SIZE
+                        fontWeight: FontWeight.w700,
                         color: textSecondary,
                       ),
                     ),
                     SizedBox(width: 0.5.w),
                     Icon(Icons.chevron_right_rounded,
-                        color: textSecondary, size: 13.sp),
+                        color: textSecondary, size: 14.sp),
                   ],
                 ),
               ],
@@ -497,11 +459,14 @@ class _HomeScreenState extends State<HomeScreen> {
               value,
               style: TextStyle(
                 fontFamily: AppStyles.fontFamily,
-                fontSize: 15.sp, // BALANCED PERFECT BOLD VALUE
-                fontWeight: FontWeight.w800,
+                fontSize: 16.5.sp,
+                // INCREASED BOLD VALUE
+                fontWeight: FontWeight.w900,
                 color: textPrimary,
-                letterSpacing: 0.3,
+                letterSpacing: 0.2,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
 
             // Growth Badge Indicator
@@ -509,10 +474,12 @@ class _HomeScreenState extends State<HomeScreen> {
               growthText,
               style: TextStyle(
                 fontFamily: AppStyles.fontFamily,
-                fontSize: 9.5.sp, // BALANCED CRISP FONT
+                fontSize: 11.sp, // INCREASED FONT SIZE
                 fontWeight: FontWeight.w600,
                 color: AppColors.tidcraftGreen,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
@@ -520,16 +487,25 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // --- 4. Sales & Purchases Target Progress Card (BALANCED FONTS) ---
-  Widget _buildSalesAndPurchasesTargetCard(
+  // --- 4. Sales Target Progress Card (PURCHASE REMOVED, LARGER FONTS) ---
+  Widget _buildSalesTargetCard(
     Color cardBg,
     Color cardBgLight,
     Color borderColor,
     Color textPrimary,
     Color textSecondary,
   ) {
+    final totals = _dashboardData?.totals;
+    final salesAmt = totals?.sales ?? 4900258.99;
+
+    // Dynamic sales target (25% higher than current or baseline)
+    final double salesTarget = salesAmt > 0 ? (salesAmt * 1.25) : 5000000.0;
+    final double salesProgress = salesTarget > 0 ? (salesAmt / salesTarget)
+        .clamp(0.0, 1.0) : 0.7;
+    final int salesPercent = (salesProgress * 100).round();
+
     return Container(
-      padding: EdgeInsets.all(3.5.w),
+      padding: EdgeInsets.all(4.w),
       decoration: BoxDecoration(
         color: cardBg,
         borderRadius: BorderRadius.circular(14),
@@ -545,13 +521,13 @@ class _HomeScreenState extends State<HomeScreen> {
               Row(
                 children: [
                   Icon(Icons.bar_chart_rounded,
-                      color: AppColors.tidcraftOrange, size: 16.sp),
+                      color: AppColors.tidcraftOrange, size: 18.sp),
                   SizedBox(width: 2.w),
                   Text(
-                    'Sales & Purchases',
+                    'Sales Target',
                     style: TextStyle(
                       fontFamily: AppStyles.fontFamily,
-                      fontSize: 14.sp, // BALANCED HEADER FONT
+                      fontSize: 15.5.sp, // INCREASED HEADER FONT
                       fontWeight: FontWeight.bold,
                       color: textPrimary,
                     ),
@@ -572,12 +548,12 @@ class _HomeScreenState extends State<HomeScreen> {
                             child: Text(p,
                                 style: TextStyle(
                                     color: textPrimary,
-                                    fontSize: 10.sp,
+                                    fontSize: 12.5.sp, // INCREASED
                                     fontWeight: FontWeight.w500))))
                         .toList(),
                 child: Container(
                   padding:
-                      EdgeInsets.symmetric(horizontal: 2.5.w, vertical: 0.6.h),
+                  EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.8.h),
                   decoration: BoxDecoration(
                     color: cardBgLight,
                     borderRadius: BorderRadius.circular(6),
@@ -589,28 +565,28 @@ class _HomeScreenState extends State<HomeScreen> {
                         _selectedSalesPeriod,
                         style: TextStyle(
                           fontFamily: AppStyles.fontFamily,
-                          fontSize: 10.sp, // BALANCED FONT
+                          fontSize: 13.5.sp, // INCREASED FONT
                           color: textPrimary,
-                          fontWeight: FontWeight.w500,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                      SizedBox(width: 0.5.w),
+                      SizedBox(width: 1.w),
                       Icon(Icons.keyboard_arrow_down_rounded,
-                          color: textSecondary, size: 13.sp),
+                          color: textSecondary, size: 15.sp),
                     ],
                   ),
                 ),
               ),
             ],
           ),
-          SizedBox(height: 1.8.h),
+          SizedBox(height: 2.h),
 
-          // Block 1: Sales Target Meter
+          // Sales Target Meter Box (Purchases removed)
           Container(
-            padding: EdgeInsets.all(3.w),
+            padding: EdgeInsets.all(3.5.w),
             decoration: BoxDecoration(
               color: cardBgLight,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(12),
               border: Border.all(color: borderColor),
             ),
             child: Column(
@@ -622,41 +598,41 @@ class _HomeScreenState extends State<HomeScreen> {
                     Row(
                       children: [
                         Icon(Icons.shopping_cart_outlined,
-                            color: AppColors.tidcraftOrange, size: 14.sp),
-                        SizedBox(width: 1.5.w),
+                            color: AppColors.tidcraftOrange, size: 16.sp),
+                        SizedBox(width: 2.w),
                         Text(
-                          'Sales',
+                          'Sales Achieved',
                           style: TextStyle(
                             fontFamily: AppStyles.fontFamily,
-                            fontSize: 11.5.sp, // BALANCED FONT
-                            fontWeight: FontWeight.w600,
+                            fontSize: 14.5.sp, // INCREASED FONT
+                            fontWeight: FontWeight.w700,
                             color: textSecondary,
                           ),
                         ),
                       ],
                     ),
                     Text(
-                      '₹ 4,82,650',
+                      _formatCurrency(salesAmt),
                       style: TextStyle(
                         fontFamily: AppStyles.fontFamily,
-                        fontSize: 13.5.sp, // BALANCED BOLD AMOUNT
-                        fontWeight: FontWeight.w800,
+                        fontSize: 16.5.sp, // INCREASED BOLD AMOUNT
+                        fontWeight: FontWeight.w900,
                         color: textPrimary,
                       ),
                     ),
                   ],
                 ),
-                SizedBox(height: 1.2.h),
+                SizedBox(height: 1.5.h),
 
                 // Sleek Progress Bar + Percentage
                 Row(
                   children: [
                     Expanded(
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
+                        borderRadius: BorderRadius.circular(6),
                         child: LinearProgressIndicator(
-                          value: 0.68,
-                          minHeight: 8, // Sleek height
+                          value: salesProgress,
+                          minHeight: 10, // Enhanced progress bar height
                           backgroundColor: _isDarkMode
                               ? Colors.black26
                               : const Color(0xFFE2E8F0),
@@ -665,112 +641,25 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                     ),
-                    SizedBox(width: 2.5.w),
+                    SizedBox(width: 3.w),
                     Text(
-                      '68%',
+                      '$salesPercent%',
                       style: TextStyle(
                         fontFamily: AppStyles.fontFamily,
-                        fontSize: 11.sp, // BALANCED PERCENTAGE
-                        fontWeight: FontWeight.bold,
+                        fontSize: 13.5.sp, // INCREASED PERCENTAGE
+                        fontWeight: FontWeight.w900,
                         color: textPrimary,
                       ),
                     ),
                   ],
                 ),
-                SizedBox(height: 0.8.h),
+                SizedBox(height: 1.h),
                 Text(
-                  'Target  ₹ 7,10,000',
+                  'Target: ${_formatCurrency(salesTarget)}',
                   style: TextStyle(
                     fontFamily: AppStyles.fontFamily,
-                    fontSize: 10.sp, // BALANCED TARGET TEXT
-                    fontWeight: FontWeight.w500,
-                    color: textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(height: 1.2.h),
-
-          // Block 2: Purchases Target Meter
-          Container(
-            padding: EdgeInsets.all(3.w),
-            decoration: BoxDecoration(
-              color: cardBgLight,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: borderColor),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.shopping_bag_outlined,
-                            color: AppColors.amberAccent, size: 14.sp),
-                        SizedBox(width: 1.5.w),
-                        Text(
-                          'Purchases',
-                          style: TextStyle(
-                            fontFamily: AppStyles.fontFamily,
-                            fontSize: 11.5.sp, // BALANCED FONT
-                            fontWeight: FontWeight.w600,
-                            color: textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Text(
-                      '₹ 2,31,480',
-                      style: TextStyle(
-                        fontFamily: AppStyles.fontFamily,
-                        fontSize: 13.5.sp, // BALANCED BOLD AMOUNT
-                        fontWeight: FontWeight.w800,
-                        color: textPrimary,
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 1.2.h),
-
-                // Progress Bar + Percentage
-                Row(
-                  children: [
-                    Expanded(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
-                        child: LinearProgressIndicator(
-                          value: 0.52,
-                          minHeight: 8, // Sleek height
-                          backgroundColor: _isDarkMode
-                              ? Colors.black26
-                              : const Color(0xFFE2E8F0),
-                          valueColor: const AlwaysStoppedAnimation<Color>(
-                              AppColors.amberAccent),
-                        ),
-                      ),
-                    ),
-                    SizedBox(width: 2.5.w),
-                    Text(
-                      '52%',
-                      style: TextStyle(
-                        fontFamily: AppStyles.fontFamily,
-                        fontSize: 11.sp, // BALANCED PERCENTAGE
-                        fontWeight: FontWeight.bold,
-                        color: textPrimary,
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 0.8.h),
-                Text(
-                  'Target  ₹ 4,50,000',
-                  style: TextStyle(
-                    fontFamily: AppStyles.fontFamily,
-                    fontSize: 10.sp, // BALANCED TARGET TEXT
-                    fontWeight: FontWeight.w500,
+                    fontSize: 13.sp, // INCREASED TARGET TEXT
+                    fontWeight: FontWeight.w600,
                     color: textSecondary,
                   ),
                 ),
@@ -782,7 +671,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // --- 5. Top 5 Sales (Products) Card (BALANCED FONTS) ---
+  // --- 5. Recent Products Card (LARGER READABLE FONTS) ---
   Widget _buildTop5ProductsCard(
     Color cardBg,
     Color cardBgLight,
@@ -790,16 +679,10 @@ class _HomeScreenState extends State<HomeScreen> {
     Color textPrimary,
     Color textSecondary,
   ) {
-    final products = [
-      {'name': 'T-shirt', 'amount': '₹ 48,200', 'pcs': '48 pcs', 'icon': Icons.checkroom_rounded},
-      {'name': 'Jeans', 'amount': '₹ 32,450', 'pcs': '32 pcs', 'icon': Icons.dry_cleaning_rounded},
-      {'name': 'Shoes', 'amount': '₹ 28,600', 'pcs': '28 pcs', 'icon': Icons.roller_skating_rounded},
-      {'name': 'Watch', 'amount': '₹ 24,300', 'pcs': '22 pcs', 'icon': Icons.watch_rounded},
-      {'name': 'Bag', 'amount': '₹ 18,750', 'pcs': '18 pcs', 'icon': Icons.work_rounded},
-    ];
+    final recentProducts = _dashboardData?.recentProducts ?? [];
 
     return Container(
-      padding: EdgeInsets.all(3.5.w),
+      padding: EdgeInsets.all(4.w),
       decoration: BoxDecoration(
         color: cardBg,
         borderRadius: BorderRadius.circular(14),
@@ -809,99 +692,158 @@ class _HomeScreenState extends State<HomeScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header Row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.inventory_2_rounded,
-                      color: AppColors.tidcraftOrange, size: 16.sp),
-                  SizedBox(width: 2.w),
-                  Text(
-                    'Top 5 Sales (Products)',
-                    style: TextStyle(
-                      fontFamily: AppStyles.fontFamily,
-                      fontSize: 14.sp, // BALANCED HEADER FONT
-                      fontWeight: FontWeight.bold,
-                      color: textPrimary,
+          InkWell(
+            onTap: () => Get.to(() => const ProductScreen()),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.inventory_2_rounded,
+                        color: AppColors.tidcraftOrange, size: 18.sp),
+                    SizedBox(width: 2.w),
+                    Text(
+                      'Recent Products',
+                      style: TextStyle(
+                        fontFamily: AppStyles.fontFamily,
+                        fontSize: 15.5.sp, // INCREASED HEADER FONT
+                        fontWeight: FontWeight.bold,
+                        color: textPrimary,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              Icon(Icons.chevron_right_rounded,
-                  color: textSecondary, size: 16.sp),
-            ],
+                  ],
+                ),
+                Row(
+                  children: [
+                    Text(
+                      'View All',
+                      style: TextStyle(
+                        fontFamily: AppStyles.fontFamily,
+                        fontSize: 14.sp, // INCREASED VIEW ALL
+                        color: textSecondary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Icon(Icons.chevron_right_rounded,
+                        color: textSecondary, size: 17.sp),
+                  ],
+                ),
+              ],
+            ),
           ),
-          SizedBox(height: 1.5.h),
+          SizedBox(height: 1.8.h),
 
           // Product Items List
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: products.length,
-            separatorBuilder: (context, index) =>
-                Divider(color: borderColor, height: 1.5.h),
-            itemBuilder: (context, index) {
-              final item = products[index];
-              return Row(
-                children: [
-                  Container(
-                    width: 9.w,
-                    height: 9.w,
-                    decoration: BoxDecoration(
-                      color: cardBgLight,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: borderColor),
-                    ),
-                    child: Icon(item['icon'] as IconData,
-                        color: AppColors.tidcraftOrange, size: 14.sp),
+          if (recentProducts.isEmpty)
+            Padding(
+              padding: EdgeInsets.symmetric(vertical: 2.h),
+              child: Center(
+                child: Text(
+                  _isLoadingDashboard
+                      ? 'Loading products...'
+                      : 'No products found',
+                  style: TextStyle(
+                    fontFamily: AppStyles.fontFamily,
+                    fontSize: 12.sp,
+                    color: textSecondary,
                   ),
-                  SizedBox(width: 2.5.w),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                ),
+              ),
+            )
+          else
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: recentProducts.length > 5 ? 5 : recentProducts.length,
+              separatorBuilder: (context, index) =>
+                  Divider(color: borderColor, height: 1.8.h),
+              itemBuilder: (context, index) {
+                final product = recentProducts[index];
+                final hasImage = product.imageUrl.isNotEmpty;
+
+                return InkWell(
+                  onTap: () => Get.to(() => const ProductScreen()),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 0.4.h),
+                    child: Row(
                       children: [
-                        Text(
-                          item['name'] as String,
-                          style: TextStyle(
-                            fontFamily: AppStyles.fontFamily,
-                            fontSize: 12.sp, // BALANCED PRODUCT NAME
-                            fontWeight: FontWeight.bold,
-                            color: textPrimary,
+                        Container(
+                          width: 11.w,
+                          height: 11.w,
+                          decoration: BoxDecoration(
+                            color: cardBgLight,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: borderColor),
+                          ),
+                          clipBehavior: Clip.antiAlias,
+                          child: hasImage
+                              ? Image.network(
+                            product.imageUrl.first,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) =>
+                                Icon(Icons.inventory_2_rounded,
+                                    color: AppColors.tidcraftOrange,
+                                    size: 16.sp),
+                          )
+                              : Icon(Icons.inventory_2_rounded,
+                              color: AppColors.tidcraftOrange, size: 16.sp),
+                        ),
+                        SizedBox(width: 3.w),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                product.name,
+                                style: TextStyle(
+                                  fontFamily: AppStyles.fontFamily,
+                                  fontSize: 14.5.sp, // INCREASED PRODUCT NAME
+                                  fontWeight: FontWeight.bold,
+                                  color: textPrimary,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              SizedBox(height: 0.3.h),
+                              Text(
+                                'Qty: ${product.quantity.toStringAsFixed(
+                                    0)} pcs${product.barcode != null &&
+                                    product.barcode!.isNotEmpty ? " • ${product
+                                    .barcode}" : ""}',
+                                style: TextStyle(
+                                  fontFamily: AppStyles.fontFamily,
+                                  fontSize: 12.5.sp, // INCREASED SUBTITLE
+                                  fontWeight: FontWeight.w500,
+                                  color: textSecondary,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
                           ),
                         ),
-                        SizedBox(height: 0.2.h),
                         Text(
-                          item['pcs'] as String,
+                          _formatCurrency(product.price),
                           style: TextStyle(
                             fontFamily: AppStyles.fontFamily,
-                            fontSize: 10.sp, // BALANCED PCS SUBTITLE
-                            fontWeight: FontWeight.w500,
-                            color: textSecondary,
+                            fontSize: 14.5.sp, // INCREASED AMOUNT
+                            fontWeight: FontWeight.w900,
+                            color: textPrimary,
                           ),
                         ),
                       ],
                     ),
                   ),
-                  Text(
-                    item['amount'] as String,
-                    style: TextStyle(
-                      fontFamily: AppStyles.fontFamily,
-                      fontSize: 12.5.sp, // BALANCED AMOUNT
-                      fontWeight: FontWeight.w800,
-                      color: textPrimary,
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
+                );
+              },
+            ),
         ],
       ),
     );
   }
 
-  // --- 6. Sales Trend Line Chart Card (BALANCED PAINTER) ---
+  // --- 6. Sales Trend Line Chart Card (PURCHASE REMOVED, LARGER FONTS) ---
   Widget _buildSalesTrendChartCard(
     Color cardBg,
     Color cardBgLight,
@@ -909,8 +851,55 @@ class _HomeScreenState extends State<HomeScreen> {
     Color textPrimary,
     Color textSecondary,
   ) {
+    // Determine sales chart data according to period
+    List<double> salesList = [];
+    List<String> xLabels = [];
+
+    final charts = _dashboardData?.charts;
+    if (_selectedTrendPeriod == 'This Month' && charts != null &&
+        charts.salesThisMonth.isNotEmpty) {
+      salesList = charts.salesThisMonth;
+      xLabels = List.generate(salesList.length, (i) => '${i + 1}');
+    } else {
+      // Annual 12 months (or default)
+      if (charts != null && charts.salesThisYear.isNotEmpty) {
+        salesList = charts.salesThisYear;
+      } else if (charts != null && charts.sales.isNotEmpty) {
+        salesList = charts.sales;
+      } else {
+        salesList = [
+          0,
+          0,
+          0,
+          5504.2,
+          0,
+          6999,
+          1276061.49,
+          3271386.23,
+          317403.9,
+          22965.74,
+          0,
+          0
+        ];
+      }
+      xLabels = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec'
+      ];
+    }
+
     return Container(
-      padding: EdgeInsets.all(3.5.w),
+      padding: EdgeInsets.all(4.w),
       decoration: BoxDecoration(
         color: cardBg,
         borderRadius: BorderRadius.circular(14),
@@ -926,13 +915,13 @@ class _HomeScreenState extends State<HomeScreen> {
               Row(
                 children: [
                   Icon(Icons.show_chart_rounded,
-                      color: AppColors.tidcraftOrange, size: 16.sp),
+                      color: AppColors.tidcraftOrange, size: 18.sp),
                   SizedBox(width: 2.w),
                   Text(
                     'Sales Trend',
                     style: TextStyle(
                       fontFamily: AppStyles.fontFamily,
-                      fontSize: 14.sp, // BALANCED HEADER FONT
+                      fontSize: 15.5.sp, // INCREASED HEADER FONT
                       fontWeight: FontWeight.bold,
                       color: textPrimary,
                     ),
@@ -947,18 +936,18 @@ class _HomeScreenState extends State<HomeScreen> {
                     borderRadius: BorderRadius.circular(8)),
                 onSelected: _updateTrendPeriod,
                 itemBuilder: (context) =>
-                    ['Last 7 Days', 'Last 30 Days', 'This Quarter']
+                    ['This Year', 'This Month']
                         .map((p) => PopupMenuItem(
                             value: p,
                             child: Text(p,
                                 style: TextStyle(
                                     color: textPrimary,
-                                    fontSize: 10.sp,
+                                    fontSize: 14.5.sp, // INCREASED
                                     fontWeight: FontWeight.w500))))
                         .toList(),
                 child: Container(
                   padding:
-                      EdgeInsets.symmetric(horizontal: 2.5.w, vertical: 0.6.h),
+                  EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.8.h),
                   decoration: BoxDecoration(
                     color: cardBgLight,
                     borderRadius: BorderRadius.circular(6),
@@ -970,14 +959,14 @@ class _HomeScreenState extends State<HomeScreen> {
                         _selectedTrendPeriod,
                         style: TextStyle(
                           fontFamily: AppStyles.fontFamily,
-                          fontSize: 10.sp, // BALANCED FONT
+                          fontSize: 13.5.sp, // INCREASED FONT
                           color: textPrimary,
-                          fontWeight: FontWeight.w500,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                      SizedBox(width: 0.5.w),
+                      SizedBox(width: 1.w),
                       Icon(Icons.keyboard_arrow_down_rounded,
-                          color: textSecondary, size: 13.sp),
+                          color: textSecondary, size: 15.sp),
                     ],
                   ),
                 ),
@@ -988,10 +977,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
           // Custom Line Chart Widget
           SizedBox(
-            height: 18.h, // Balanced chart height
+            height: 19.h,
             width: double.infinity,
             child: CustomPaint(
               painter: SalesTrendPainter(
+                salesData: salesList,
+                xLabels: xLabels,
+                currencySymbol: _dashboardData?.currencySymbol ?? '₹',
                 isDarkMode: _isDarkMode,
                 textSecondary: textSecondary,
                 borderColor: borderColor,
@@ -1000,54 +992,27 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           SizedBox(height: 1.h),
 
-          // Chart Legend Row
+          // Chart Legend Row (Pure Sales Revenue Legend)
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Row(
-                children: [
-                  Container(
-                    width: 9,
-                    height: 9,
-                    decoration: const BoxDecoration(
-                      color: AppColors.tidcraftOrange,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  SizedBox(width: 1.5.w),
-                  Text(
-                    'Sales',
-                    style: TextStyle(
-                      fontFamily: AppStyles.fontFamily,
-                      fontSize: 10.5.sp, // BALANCED FONT
-                      fontWeight: FontWeight.w600,
-                      color: textPrimary,
-                    ),
-                  ),
-                ],
+              Container(
+                width: 10,
+                height: 10,
+                decoration: const BoxDecoration(
+                  color: AppColors.tidcraftOrange,
+                  shape: BoxShape.circle,
+                ),
               ),
-              SizedBox(width: 6.w),
-              Row(
-                children: [
-                  Container(
-                    width: 9,
-                    height: 9,
-                    decoration: const BoxDecoration(
-                      color: AppColors.amberAccent,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  SizedBox(width: 1.5.w),
-                  Text(
-                    'Purchases',
-                    style: TextStyle(
-                      fontFamily: AppStyles.fontFamily,
-                      fontSize: 10.5.sp, // BALANCED FONT
-                      fontWeight: FontWeight.w600,
-                      color: textPrimary,
-                    ),
-                  ),
-                ],
+              SizedBox(width: 2.w),
+              Text(
+                'Total Sales Revenue',
+                style: TextStyle(
+                  fontFamily: AppStyles.fontFamily,
+                  fontSize: 13.sp, // INCREASED FONT
+                  fontWeight: FontWeight.w600,
+                  color: textPrimary,
+                ),
               ),
             ],
           ),
@@ -1056,7 +1021,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // --- 7. Recent Sales & Recent Purchases Section (BALANCED FONTS) ---
+  // --- 7. Recent Sales Section (PURCHASE REMOVED, LARGER FONTS) ---
   Widget _buildRecentTransactionsSection(
     Color cardBg,
     Color cardBgLight,
@@ -1064,57 +1029,20 @@ class _HomeScreenState extends State<HomeScreen> {
     Color textPrimary,
     Color textSecondary,
   ) {
-    final recentSales = [
-      {'initials': 'RK', 'name': 'Ramesh Kumar', 'id': '#INV-10045', 'amount': '₹ 18,750', 'time': 'Today', 'status': 'Paid', 'statusColor': AppColors.tidcraftGreen},
-      {'initials': 'AP', 'name': 'Aarti Patel', 'id': '#INV-10044', 'amount': '₹ 12,420', 'time': 'Today', 'status': 'Paid', 'statusColor': AppColors.tidcraftGreen},
-      {'initials': 'JS', 'name': 'Jigar Shah', 'id': '#INV-10043', 'amount': '₹ 9,860', 'time': 'Yesterday', 'status': 'Pending', 'statusColor': AppColors.tidcraftOrange},
-      {'initials': 'MK', 'name': 'Meena Kapadia', 'id': '#INV-10042', 'amount': '₹ 24,300', 'time': 'Yesterday', 'status': 'Paid', 'statusColor': AppColors.tidcraftGreen},
-    ];
+    final latestSales = _dashboardData?.latestSales ?? [];
 
-    final recentPurchases = [
-      {'initials': 'VS', 'name': 'Vishal Suppliers', 'id': '#PUR-20078', 'amount': '₹ 42,600', 'time': 'Today', 'status': 'Received', 'statusColor': AppColors.amberAccent},
-      {'initials': 'AG', 'name': 'Apex Global', 'id': '#PUR-20077', 'amount': '₹ 18,950', 'time': 'Yesterday', 'status': 'Received', 'statusColor': AppColors.amberAccent},
-      {'initials': 'SK', 'name': 'S.K. Traders', 'id': '#PUR-20076', 'amount': '₹ 11,320', 'time': 'Yesterday', 'status': 'Pending', 'statusColor': AppColors.tidcraftOrange},
-      {'initials': 'RM', 'name': 'R M Distributors', 'id': '#PUR-20075', 'amount': '₹ 35,780', 'time': '2 days ago', 'status': 'Received', 'statusColor': AppColors.amberAccent},
-    ];
-
-    return Column(
-      children: [
-        // Recent Sales Container
-        _buildTransactionCardBlock(
-          title: 'Recent Sales',
-          icon: Icons.edit_note_rounded,
-          iconColor: AppColors.tidcraftOrange,
-          items: recentSales,
-          cardBg: cardBg,
-          cardBgLight: cardBgLight,
-          borderColor: borderColor,
-          textPrimary: textPrimary,
-          textSecondary: textSecondary,
-        ),
-        SizedBox(height: 2.h),
-
-        // Recent Purchases Container
-        _buildTransactionCardBlock(
-          title: 'Recent Purchases',
-          icon: Icons.shopping_cart_outlined,
-          iconColor: AppColors.amberAccent,
-          items: recentPurchases,
-          cardBg: cardBg,
-          cardBgLight: cardBgLight,
-          borderColor: borderColor,
-          textPrimary: textPrimary,
-          textSecondary: textSecondary,
-        ),
-      ],
+    return _buildRecentSalesBlock(
+      sales: latestSales,
+      cardBg: cardBg,
+      cardBgLight: cardBgLight,
+      borderColor: borderColor,
+      textPrimary: textPrimary,
+      textSecondary: textSecondary,
     );
   }
 
-  Widget _buildTransactionCardBlock({
-    required String title,
-    required IconData icon,
-    required Color iconColor,
-    required List<Map<String, dynamic>> items,
+  Widget _buildRecentSalesBlock({
+    required List<DashboardSaleItemModel> sales,
     required Color cardBg,
     required Color cardBgLight,
     required Color borderColor,
@@ -1122,7 +1050,7 @@ class _HomeScreenState extends State<HomeScreen> {
     required Color textSecondary,
   }) {
     return Container(
-      padding: EdgeInsets.all(3.5.w),
+      padding: EdgeInsets.all(4.w),
       decoration: BoxDecoration(
         color: cardBg,
         borderRadius: BorderRadius.circular(14),
@@ -1132,153 +1060,192 @@ class _HomeScreenState extends State<HomeScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header Row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Icon(icon, color: iconColor, size: 16.sp),
-                  SizedBox(width: 2.w),
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontFamily: AppStyles.fontFamily,
-                      fontSize: 14.sp, // BALANCED HEADER FONT
-                      fontWeight: FontWeight.bold,
-                      color: textPrimary,
-                    ),
-                  ),
-                ],
-              ),
-              Row(
-                children: [
-                  Text(
-                    'View All',
-                    style: TextStyle(
-                      fontFamily: AppStyles.fontFamily,
-                      fontSize: 10.5.sp, // BALANCED FONT
-                      color: textSecondary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  Icon(Icons.chevron_right_rounded,
-                      color: textSecondary, size: 13.sp),
-                ],
-              ),
-            ],
-          ),
-          SizedBox(height: 1.5.h),
-
-          // Items List
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: items.length,
-            separatorBuilder: (context, index) =>
-                Divider(color: borderColor, height: 1.5.h),
-            itemBuilder: (context, index) {
-              final item = items[index];
-              final statusColor = item['statusColor'] as Color;
-
-              return Row(
-                children: [
-                  // Circular Avatar Initials
-                  CircleAvatar(
-                    radius: 16, // Clean balanced avatar
-                    backgroundColor: _isDarkMode
-                        ? cardBgLight
-                        : const Color(0xFFE2E8F0),
-                    child: Text(
-                      item['initials'] as String,
+          InkWell(
+            onTap: () => Get.to(() => const AllSalesScreen()),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.edit_note_rounded,
+                        color: AppColors.tidcraftOrange, size: 18.sp),
+                    SizedBox(width: 2.w),
+                    Text(
+                      'Recent Sales',
                       style: TextStyle(
                         fontFamily: AppStyles.fontFamily,
-                        fontSize: 10.sp, // BALANCED INITIALS
+                        fontSize: 15.5.sp, // INCREASED HEADER FONT
                         fontWeight: FontWeight.bold,
                         color: textPrimary,
                       ),
                     ),
-                  ),
-                  SizedBox(width: 2.5.w),
+                  ],
+                ),
+                Row(
+                  children: [
+                    Text(
+                      'View All',
+                      style: TextStyle(
+                        fontFamily: AppStyles.fontFamily,
+                        fontSize: 14.sp, // INCREASED VIEW ALL
+                        color: textSecondary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Icon(Icons.chevron_right_rounded,
+                        color: textSecondary, size: 16.sp),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          SizedBox(height: 1.8.h),
 
-                  // Name & ID
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+          if (sales.isEmpty)
+            Padding(
+              padding: EdgeInsets.symmetric(vertical: 2.h),
+              child: Center(
+                child: Text(
+                  _isLoadingDashboard ? 'Loading sales...' : 'No recent sales',
+                  style: TextStyle(
+                    fontFamily: AppStyles.fontFamily,
+                    fontSize: 12.sp,
+                    color: textSecondary,
+                  ),
+                ),
+              ),
+            )
+          else
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: sales.length > 5 ? 5 : sales.length,
+              separatorBuilder: (context, index) =>
+                  Divider(color: borderColor, height: 1.8.h),
+              itemBuilder: (context, index) {
+                final item = sales[index];
+                final initials = item.productName.isNotEmpty
+                    ? item.productName.substring(
+                    0, item.productName.length >= 2 ? 2 : 1).toUpperCase()
+                    : 'SL';
+
+                return InkWell(
+                  onTap: () {
+                    final targetId = item.orderId ?? item.id;
+                    Get.to(() => SalesDetailScreen(orderId: targetId));
+                  },
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 0.6.h),
+                    child: Row(
                       children: [
-                        Text(
-                          item['name'] as String,
-                          style: TextStyle(
-                            fontFamily: AppStyles.fontFamily,
-                            fontSize: 11.5.sp, // BALANCED NAME FONT
-                            fontWeight: FontWeight.bold,
-                            color: textPrimary,
+                        CircleAvatar(
+                          radius: 18, // Slightly larger avatar
+                          backgroundColor: _isDarkMode
+                              ? cardBgLight
+                              : const Color(0xFFE2E8F0),
+                          child: Text(
+                            initials,
+                            style: TextStyle(
+                              fontFamily: AppStyles.fontFamily,
+                              fontSize: 11.5.sp, // INCREASED INITIALS
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.tidcraftOrange,
+                            ),
                           ),
                         ),
-                        SizedBox(height: 0.2.h),
-                        Text(
-                          item['id'] as String,
-                          style: TextStyle(
-                            fontFamily: AppStyles.fontFamily,
-                            fontSize: 9.5.sp, // BALANCED ID FONT
-                            color: textSecondary,
+                        SizedBox(width: 3.w),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                item.productName.isNotEmpty
+                                    ? item.productName
+                                    : 'Sale #${item.orderNumber}',
+                                style: TextStyle(
+                                  fontFamily: AppStyles.fontFamily,
+                                  fontSize: 14.5.sp, // INCREASED NAME FONT
+                                  fontWeight: FontWeight.bold,
+                                  color: textPrimary,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              SizedBox(height: 0.3.h),
+                              Text(
+                                item.orderNumber.isNotEmpty
+                                    ? item.orderNumber
+                                    : '#${item.id}',
+                                style: TextStyle(
+                                  fontFamily: AppStyles.fontFamily,
+                                  fontSize: 12.sp, // INCREASED ID FONT
+                                  color: textSecondary,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
                           ),
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              _formatCurrency(item.totalAmount),
+                              style: TextStyle(
+                                fontFamily: AppStyles.fontFamily,
+                                fontSize: 14.5.sp, // INCREASED AMOUNT FONT
+                                fontWeight: FontWeight.w900,
+                                color: textPrimary,
+                              ),
+                            ),
+                            SizedBox(height: 0.4.h),
+                            Row(
+                              children: [
+                                Text(
+                                  _formatDate(item.orderDate),
+                                  style: TextStyle(
+                                    fontFamily: AppStyles.fontFamily,
+                                    fontSize: 12.5.sp, // INCREASED TIME FONT
+                                    color: textSecondary,
+                                  ),
+                                ),
+                                SizedBox(width: 2.w),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.tidcraftGreen.withValues(
+                                        alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(5),
+                                    border: Border.all(
+                                        color: AppColors.tidcraftGreen
+                                            .withValues(alpha: 0.3)),
+                                  ),
+                                  child: Text(
+                                    (item.paymentMethod != null &&
+                                        item.paymentMethod!.isNotEmpty)
+                                        ? item.paymentMethod!.toUpperCase()
+                                        : 'PAID',
+                                    style: TextStyle(
+                                      fontFamily: AppStyles.fontFamily,
+                                      fontSize: 10.sp, // INCREASED STATUS FONT
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.tidcraftGreen,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ],
                     ),
                   ),
-
-                  // Amount & Status Badge
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        item['amount'] as String,
-                        style: TextStyle(
-                          fontFamily: AppStyles.fontFamily,
-                          fontSize: 12.5.sp, // BALANCED AMOUNT FONT
-                          fontWeight: FontWeight.w800,
-                          color: textPrimary,
-                        ),
-                      ),
-                      SizedBox(height: 0.3.h),
-                      Row(
-                        children: [
-                          Text(
-                            item['time'] as String,
-                            style: TextStyle(
-                              fontFamily: AppStyles.fontFamily,
-                              fontSize: 9.sp, // BALANCED TIME FONT
-                              color: textSecondary,
-                            ),
-                          ),
-                          SizedBox(width: 1.5.w),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: statusColor.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(
-                                  color: statusColor.withValues(alpha: 0.3)),
-                            ),
-                            child: Text(
-                              item['status'] as String,
-                              style: TextStyle(
-                                fontFamily: AppStyles.fontFamily,
-                                fontSize: 9.sp, // BALANCED STATUS FONT
-                                fontWeight: FontWeight.bold,
-                                color: statusColor,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ],
-              );
-            },
-          ),
+                );
+              },
+            ),
         ],
       ),
     );
@@ -1307,17 +1274,34 @@ class _HomeScreenState extends State<HomeScreen> {
 
 }
 
-// --- Custom Painter for Sales Trend Line Chart (Dynamic Dark/Light Aware) ---
+// --- Custom Painter for Sales Trend Line Chart (Sales Focused, Larger Fonts) ---
 class SalesTrendPainter extends CustomPainter {
+  final List<double> salesData;
+  final List<String> xLabels;
+  final String currencySymbol;
   final bool isDarkMode;
   final Color textSecondary;
   final Color borderColor;
 
   SalesTrendPainter({
+    required this.salesData,
+    required this.xLabels,
+    this.currencySymbol = '₹',
     required this.isDarkMode,
     required this.textSecondary,
     required this.borderColor,
   });
+
+  String _formatCompact(double amount) {
+    if (amount >= 10000000) {
+      return '$currencySymbol${(amount / 10000000).toStringAsFixed(1)}Cr';
+    } else if (amount >= 100000) {
+      return '$currencySymbol${(amount / 100000).toStringAsFixed(1)}L';
+    } else if (amount >= 1000) {
+      return '$currencySymbol${(amount / 1000).toStringAsFixed(0)}K';
+    }
+    return '$currencySymbol${amount.toStringAsFixed(0)}';
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1331,29 +1315,35 @@ class SalesTrendPainter extends CustomPainter {
 
     final salesPaint = Paint()
       ..color = AppColors.tidcraftOrange
-      ..strokeWidth = 3
+      ..strokeWidth = 3.0 // Crisp prominent line
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
 
-    final purchasePaint = Paint()
-      ..color = AppColors.amberAccent
-      ..strokeWidth = 3
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
+    // Calculate maximum value
+    double maxVal = 0;
+    for (final v in salesData) {
+      if (v > maxVal) maxVal = v;
+    }
+    if (maxVal <= 0) maxVal = 10000;
 
-    // Draw horizontal grid lines & Y labels (BALANCED FONTS)
-    final yLabels = ['₹ 1.5L', '₹ 1.0L', '₹ 50K', '₹ 0'];
-    final double yStep = (height - 25) / (yLabels.length - 1);
+    // Y Axis Labels & Grid Lines (LARGER FONTS)
+    final yLabels = [
+      _formatCompact(maxVal),
+      _formatCompact(maxVal * 0.66),
+      _formatCompact(maxVal * 0.33),
+      '0',
+    ];
+    final double yStep = (height - 28) / (yLabels.length - 1);
 
     for (int i = 0; i < yLabels.length; i++) {
       double y = i * yStep + 8;
-      canvas.drawLine(Offset(40, y), Offset(width, y), gridPaint);
+      canvas.drawLine(Offset(48, y), Offset(width, y), gridPaint);
 
       final textSpan = TextSpan(
         text: yLabels[i],
         style: TextStyle(
           color: textSecondary,
-          fontSize: 9, // Crisp painter font
+          fontSize: 10.5, // INCREASED FONT
           fontWeight: FontWeight.w600,
         ),
       );
@@ -1361,70 +1351,64 @@ class SalesTrendPainter extends CustomPainter {
         text: textSpan,
         textDirection: TextDirection.ltr,
       )..layout();
-      textPainter.paint(canvas, Offset(0, y - 5));
+      textPainter.paint(canvas, Offset(0, y - 6));
     }
 
-    // X Axis Labels (BALANCED FONTS)
-    final xLabels = [
-      'Oct 7',
-      'Oct 8',
-      'Oct 9',
-      'Oct 10',
-      'Oct 11',
-      'Oct 12',
-      'Oct 13'
-    ];
-    final double xStart = 45;
-    final double xStep = (width - xStart) / (xLabels.length - 1);
+    if (xLabels.isEmpty) return;
 
-    for (int i = 0; i < xLabels.length; i++) {
-      double x = xStart + i * xStep;
-      final textSpan = TextSpan(
-        text: xLabels[i],
-        style: TextStyle(
-          color: textSecondary,
-          fontSize: 9, // Crisp painter font
-          fontWeight: FontWeight.w600,
-        ),
-      );
-      final textPainter = TextPainter(
-        text: textSpan,
-        textDirection: TextDirection.ltr,
-      )..layout();
-      textPainter.paint(canvas, Offset(x - 12, height - 12));
+    // X Axis Labels (LARGER FONTS)
+    final double xStart = 55;
+    final int count = xLabels.length;
+    final double xStep = count > 1 ? (width - xStart - 10) / (count - 1) : 0;
+
+    // Decide step interval if too many labels (like 31 days)
+    int labelInterval = 1;
+    if (count > 15) {
+      labelInterval = (count / 6).ceil();
     }
 
-    // Points for Sales & Purchases
-    final salesNormalized = [0.65, 0.52, 0.50, 0.51, 0.32, 0.40, 0.30];
-    final purchaseNormalized = [0.82, 0.72, 0.73, 0.74, 0.58, 0.60, 0.48];
+    for (int i = 0; i < count; i++) {
+      if (i % labelInterval == 0 || i == count - 1) {
+        double x = xStart + i * xStep;
+        final textSpan = TextSpan(
+          text: xLabels[i],
+          style: TextStyle(
+            color: textSecondary,
+            fontSize: 10.5, // INCREASED FONT
+            fontWeight: FontWeight.w600,
+          ),
+        );
+        final textPainter = TextPainter(
+          text: textSpan,
+          textDirection: TextDirection.ltr,
+        )
+          ..layout();
+        textPainter.paint(
+            canvas, Offset(x - (textPainter.width / 2), height - 14));
+      }
+    }
 
-    final Path salesPath = Path();
-    final Path purchasePath = Path();
-
+    // Chart points
+    final chartHeight = height - 42;
     List<Offset> salesPoints = [];
-    List<Offset> purchasePoints = [];
 
-    for (int i = 0; i < xLabels.length; i++) {
+    for (int i = 0; i < count; i++) {
       double x = xStart + i * xStep;
-      double ySales = salesNormalized[i] * (height - 35) + 8;
-      double yPurchase = purchaseNormalized[i] * (height - 35) + 8;
-
+      double sVal = i < salesData.length ? salesData[i] : 0.0;
+      double ySales = (height - 28) -
+          ((sVal / maxVal).clamp(0.0, 1.0) * chartHeight);
       salesPoints.add(Offset(x, ySales));
-      purchasePoints.add(Offset(x, yPurchase));
     }
 
     // Draw Smooth Curves
+    final Path salesPath = Path();
     _drawCurvedLine(canvas, salesPoints, salesPath, salesPaint);
-    _drawCurvedLine(canvas, purchasePoints, purchasePath, purchasePaint);
 
     // Draw Dots on Points
-    for (var point in salesPoints) {
+    final dotStep = count > 15 ? labelInterval : 1;
+    for (int i = 0; i < salesPoints.length; i += dotStep) {
+      final point = salesPoints[i];
       canvas.drawCircle(point, 3.5, Paint()..color = AppColors.tidcraftOrange);
-      canvas.drawCircle(point, 1.5, Paint()..color = Colors.white);
-    }
-
-    for (var point in purchasePoints) {
-      canvas.drawCircle(point, 3.5, Paint()..color = AppColors.amberAccent);
       canvas.drawCircle(point, 1.5, Paint()..color = Colors.white);
     }
   }
@@ -1451,5 +1435,8 @@ class SalesTrendPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+  bool shouldRepaint(covariant SalesTrendPainter oldDelegate) =>
+      oldDelegate.salesData != salesData ||
+          oldDelegate.isDarkMode != isDarkMode ||
+          oldDelegate.xLabels != xLabels;
 }

@@ -81,9 +81,10 @@ class ProductService {
       return AllunitsModal.fromJson(data);
     } on ApiException {
       rethrow;
-    } catch (e) {
+    } catch (e,stackTrace) {
       if (kDebugMode) {
         debugPrint('Error fetching units: $e');
+        debugPrint('Error fetching units: $stackTrace');
       }
       throw ApiException(message: 'Failed to fetch units: ${e.toString()}');
     }
