@@ -8,53 +8,10 @@ import '../../../widgets/custom_drawer.dart';
 import '../../home_screen.dart';
 import '../../profile_screen.dart';
 import '../../sales&bills/view/all_sales_screen.dart';
+import '../controller/product_controller.dart';
+import '../modal/AllproductViewLIstModal.dart' as product_modal;
 import 'add_product_screen.dart';
 import 'import_product_screen.dart';
-
-/// Product model representing an item in the ERP product list.
-class ProductItem {
-  final String name;
-  final String? imageUrl;
-  final IconData placeholderIcon;
-  final String sku;
-  final String category;
-  final String unit;
-  final String brand;
-  final bool isAvailable;
-
-  const ProductItem({
-    required this.name,
-    this.imageUrl,
-    this.placeholderIcon = Icons.inventory_2_outlined,
-    required this.sku,
-    required this.category,
-    required this.unit,
-    required this.brand,
-    required this.isAvailable,
-  });
-
-  ProductItem copyWith({
-    String? name,
-    String? imageUrl,
-    IconData? placeholderIcon,
-    String? sku,
-    String? category,
-    String? unit,
-    String? brand,
-    bool? isAvailable,
-  }) {
-    return ProductItem(
-      name: name ?? this.name,
-      imageUrl: imageUrl ?? this.imageUrl,
-      placeholderIcon: placeholderIcon ?? this.placeholderIcon,
-      sku: sku ?? this.sku,
-      category: category ?? this.category,
-      unit: unit ?? this.unit,
-      brand: brand ?? this.brand,
-      isAvailable: isAvailable ?? this.isAvailable,
-    );
-  }
-}
 
 /// Screen displaying the mobile All Products catalog with filters and cards.
 class ProductScreen extends StatefulWidget {
@@ -65,100 +22,9 @@ class ProductScreen extends StatefulWidget {
 }
 
 class _ProductScreenState extends State<ProductScreen> {
+  final ProductController _controller = Get.put(ProductController());
   final TextEditingController _searchController = TextEditingController();
-  String _selectedCategory = 'All Categories';
-  String _selectedBrand = 'All Brands';
   bool _isCalculatorOpen = false;
-
-  final List<String> _categories = [
-    'All Categories',
-    'Clothing',
-    'Furniture',
-    'Grains & Pulses',
-    'Sports',
-    'Footwear',
-  ];
-
-  final List<String> _brands = [
-    'All Brands',
-    'Nivia',
-    'Force',
-    'YRUS',
-    'Urban Ladder',
-    'SG',
-  ];
-
-  late List<ProductItem> _allProducts;
-
-  @override
-  void initState() {
-    super.initState();
-    _allProducts = [
-      const ProductItem(
-        name: 'Test-Disha-2',
-        placeholderIcon: Icons.checkroom_rounded,
-        sku: '3352621',
-        category: 'Clothing',
-        unit: 'FGDF',
-        brand: 'Nivia',
-        isAvailable: true,
-      ),
-      const ProductItem(
-        name: 'Abc',
-        placeholderIcon: Icons.sports_tennis_rounded,
-        sku: 'N/A',
-        category: 'N/A',
-        unit: 'Pice',
-        brand: 'Force',
-        isAvailable: false,
-      ),
-      const ProductItem(
-        name: 'SUPER WIDE LEG',
-        placeholderIcon: Icons.dry_cleaning_rounded,
-        sku: 'N/A',
-        category: 'N/A',
-        unit: 'Pcs',
-        brand: 'YRUS',
-        isAvailable: false,
-      ),
-      const ProductItem(
-        name: 'Mung 30kg EVERYDAY',
-        placeholderIcon: Icons.grain_rounded,
-        sku: '57794973',
-        category: 'N/A',
-        unit: 'N/A',
-        brand: 'N/A',
-        isAvailable: false,
-      ),
-      const ProductItem(
-        name: 'BAJARA-26K.G DAYMAND',
-        placeholderIcon: Icons.grass_rounded,
-        sku: '35562377',
-        category: 'N/A',
-        unit: 'N/A',
-        brand: 'N/A',
-        isAvailable: false,
-      ),
-      const ProductItem(
-        name: 'Sofa Set',
-        placeholderIcon: Icons.chair_rounded,
-        sku: '020',
-        category: 'Furniture',
-        unit: 'SET',
-        brand: 'Urban Ladder',
-        isAvailable: false,
-      ),
-      const ProductItem(
-        name: 'Abc-Test',
-        placeholderIcon: Icons.sports_cricket_rounded,
-        sku: '0523157',
-        category: 'Sports',
-        unit: 'FGDF',
-        brand: 'SG',
-        isAvailable: false,
-      ),
-    ];
-  }
 
   @override
   void dispose() {
@@ -166,48 +32,7 @@ class _ProductScreenState extends State<ProductScreen> {
     super.dispose();
   }
 
-  List<ProductItem> get _filteredProducts {
-    final query = _searchController.text.trim().toLowerCase();
-    return _allProducts.where((p) {
-      final matchesSearch = query.isEmpty ||
-          p.name.toLowerCase().contains(query) ||
-          p.sku.toLowerCase().contains(query) ||
-          p.brand.toLowerCase().contains(query) ||
-          p.category.toLowerCase().contains(query);
-
-      final matchesCategory = _selectedCategory == 'All Categories' ||
-          p.category.toLowerCase() == _selectedCategory.toLowerCase();
-
-      final matchesBrand = _selectedBrand == 'All Brands' ||
-          p.brand.toLowerCase() == _selectedBrand.toLowerCase();
-
-      return matchesSearch && matchesCategory && matchesBrand;
-    }).toList();
-  }
-
-  void _toggleAvailability(ProductItem item) {
-    final index = _allProducts.indexWhere((p) => p.name == item.name);
-    if (index != -1) {
-      setState(() {
-        _allProducts[index] = item.copyWith(isAvailable: !item.isAvailable);
-      });
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '${item.name} marked as ${!item.isAvailable ? "Available" : "Not Available"}.',
-            style: TextStyle(fontSize: 14.sp, color: Colors.white),
-          ),
-          backgroundColor:
-              !item.isAvailable ? const Color(0xFF15803D) : const Color(0xFFEF4444),
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    }
-  }
-
-  void _deleteProduct(ProductItem item) {
+  void _deleteProduct(product_modal.Data item) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -222,7 +47,7 @@ class _ProductScreenState extends State<ProductScreen> {
           ),
         ),
         content: Text(
-          'Are you sure you want to delete "${item.name}"?',
+          'Are you sure you want to delete "${item.name ?? 'this product'}"?',
           style: TextStyle(
             fontSize: 14.5.sp,
             color: const Color(0xFF475569),
@@ -241,23 +66,11 @@ class _ProductScreenState extends State<ProductScreen> {
             ),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(ctx);
-              setState(() {
-                _allProducts.removeWhere((p) => p.name == item.name);
-              });
-              ScaffoldMessenger.of(context).hideCurrentSnackBar();
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    'Product "${item.name}" deleted successfully.',
-                    style: TextStyle(fontSize: 14.sp, color: Colors.white),
-                  ),
-                  backgroundColor: const Color(0xFFDC2626),
-                  behavior: SnackBarBehavior.floating,
-                  duration: const Duration(seconds: 2),
-                ),
-              );
+              if (item.id != null) {
+                await _controller.deleteProduct(item.id!);
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFDC2626),
@@ -279,7 +92,7 @@ class _ProductScreenState extends State<ProductScreen> {
     );
   }
 
-  void _showProductDetailsDialog(ProductItem item) {
+  void _showProductDetailsDialog(product_modal.Data item) {
     showDialog(
       context: context,
       builder: (ctx) => Dialog(
@@ -299,7 +112,7 @@ class _ProductScreenState extends State<ProductScreen> {
                 children: [
                   Expanded(
                     child: Text(
-                      item.name,
+                      item.name ?? 'N/A',
                       style: TextStyle(
                         fontSize: 16.sp,
                         fontWeight: FontWeight.w800,
@@ -315,14 +128,17 @@ class _ProductScreenState extends State<ProductScreen> {
                 ],
               ),
               const SizedBox(height: 12),
-              _buildDetailRow('SKU', item.sku),
-              _buildDetailRow('Category', item.category),
-              _buildDetailRow('Unit', item.unit),
-              _buildDetailRow('Brand', item.brand),
+              _buildDetailRow('SKU', item.sKU ?? 'N/A'),
+              _buildDetailRow('Category', item.category?.name ?? 'N/A'),
+              _buildDetailRow('Unit', item.unit?.unitName ?? 'N/A'),
+              _buildDetailRow('Brand', item.brand?.name ?? 'N/A'),
+              _buildDetailRow('Price', '₹ ${item.price ?? '0'}'),
+              _buildDetailRow('MRP', '₹ ${item.mrp ?? '0.00'}'),
+              _buildDetailRow('Quantity', '${item.quantity ?? '0'}'),
               _buildDetailRow(
                 'Rent Availability',
-                item.isAvailable ? 'Available' : 'Not Available',
-                valueColor: item.isAvailable
+                item.isRentAvailable == 1 ? 'Available' : 'Not Available',
+                valueColor: item.isRentAvailable == 1
                     ? const Color(0xFF16A34A)
                     : const Color(0xFFEF4444),
               ),
@@ -381,7 +197,7 @@ class _ProductScreenState extends State<ProductScreen> {
     );
   }
 
-  void _showBarcodeDialog(ProductItem item) {
+  void _showBarcodeDialog(product_modal.Data item) {
     showDialog(
       context: context,
       builder: (ctx) => Dialog(
@@ -396,7 +212,7 @@ class _ProductScreenState extends State<ProductScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'Barcode: ${item.name}',
+                'Barcode: ${item.name ?? 'Product'}',
                 style: TextStyle(
                   fontSize: 16.sp,
                   fontWeight: FontWeight.w700,
@@ -420,7 +236,9 @@ class _ProductScreenState extends State<ProductScreen> {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      item.sku == 'N/A' ? 'NO-SKU-ASSIGNED' : item.sku,
+                      (item.barcode != null && item.barcode!.isNotEmpty)
+                          ? item.barcode!
+                          : (item.sKU ?? 'NO-SKU-ASSIGNED'),
                       style: TextStyle(
                         fontSize: 14.5.sp,
                         fontWeight: FontWeight.w700,
@@ -494,12 +312,12 @@ class _ProductScreenState extends State<ProductScreen> {
               ),
               const SizedBox(height: 12),
               Flexible(
-                child: ListView.separated(
+                child: Obx(() => ListView.separated(
                   shrinkWrap: true,
-                  itemCount: _allProducts.length,
+                  itemCount: _controller.productsList.length,
                   separatorBuilder: (_, __) => const Divider(height: 1),
                   itemBuilder: (context, i) {
-                    final p = _allProducts[i];
+                    final p = _controller.productsList[i];
                     return ListTile(
                       contentPadding: EdgeInsets.zero,
                       leading: const Icon(
@@ -508,7 +326,7 @@ class _ProductScreenState extends State<ProductScreen> {
                         color: Color(0xFF1E293B),
                       ),
                       title: Text(
-                        p.name,
+                        p.name ?? 'N/A',
                         style: TextStyle(
                           fontSize: 14.5.sp,
                           fontWeight: FontWeight.w600,
@@ -516,176 +334,50 @@ class _ProductScreenState extends State<ProductScreen> {
                         ),
                       ),
                       subtitle: Text(
-                        'SKU: ${p.sku}',
+                        'SKU: ${p.sKU ?? 'N/A'}',
                         style: TextStyle(
                           fontSize: 14.sp,
                           color: const Color(0xFF64748B),
                         ),
                       ),
                       trailing: Text(
-                        p.isAvailable ? 'Available' : 'Not Available',
+                        p.isRentAvailable == 1 ? 'Available' : 'Not Available',
                         style: TextStyle(
                           fontSize: 14.sp,
                           fontWeight: FontWeight.w600,
-                          color: p.isAvailable
+                          color: p.isRentAvailable == 1
                               ? const Color(0xFF16A34A)
                               : const Color(0xFFEF4444),
                         ),
                       ),
                     );
                   },
-                ),
+                )),
               ),
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  void _showPriceHistoryDialog() {
-    showDialog(
-      context: context,
-      builder: (ctx) => Dialog(
-        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        child: Container(
-          width: double.infinity,
-          constraints: const BoxConstraints(maxWidth: 550, maxHeight: 550),
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Price History Audit',
-                      style: TextStyle(
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF0F172A),
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close_rounded),
-                    onPressed: () => Navigator.pop(ctx),
-                    color: const Color(0xFF64748B),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Flexible(
-                child: ListView(
-                  shrinkWrap: true,
-                  children: [
-                    _buildHistoryTile(
-                      'Test-Disha-2',
-                      'Price adjusted from ₹ 450.00 to ₹ 500.00',
-                      '28-09-2026',
-                    ),
-                    _buildHistoryTile(
-                      'SUPER WIDE LEG',
-                      'Price adjusted from ₹ 520.00 to ₹ 550.00',
-                      '24-09-2026',
-                    ),
-                    _buildHistoryTile(
-                      'Sofa Set',
-                      'Catalog launch base price ₹ 34,999.00',
-                      '15-09-2026',
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHistoryTile(String title, String subtitle, String date) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 14.5.sp,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF0F172A),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                date,
-                style: TextStyle(
-                  fontSize: 14.sp,
-                  color: const Color(0xFF64748B),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: TextStyle(
-              fontSize: 14.sp,
-              color: const Color(0xFF334155),
-            ),
-          ),
-        ],
       ),
     );
   }
 
   void _handleExportExcel() {
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Exporting products list to Excel...',
-          style: TextStyle(fontSize: 14.sp, color: Colors.white),
-        ),
-        backgroundColor: const Color(0xFF15803D),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-      ),
+    Get.snackbar(
+      'Export',
+      'Exporting products list to Excel...',
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: const Color(0xFF15803D),
+      colorText: Colors.white,
     );
   }
 
   void _handleExportPdf() {
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Generating PDF catalog report...',
-          style: TextStyle(fontSize: 14.sp, color: Colors.white),
-        ),
-        backgroundColor: const Color(0xFFDC2626),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-      ),
+    Get.snackbar(
+      'Export',
+      'Generating PDF catalog report...',
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: const Color(0xFFDC2626),
+      colorText: Colors.white,
     );
   }
 
@@ -708,7 +400,6 @@ class _ProductScreenState extends State<ProductScreen> {
               Get.offAll(() => const HomeScreen());
               break;
             case 1:
-              // Already on Products
               break;
             case 2:
               Get.to(() => const AllSalesScreen());
@@ -734,55 +425,60 @@ class _ProductScreenState extends State<ProductScreen> {
           size: 26,
         ),
       ),
-      body: Stack(
-        children: [
-          SingleChildScrollView(
-            padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 1. Header Actions (Import Products & New Product)
-                _buildHeader(context),
+      body: RefreshIndicator(
+        onRefresh: () => _controller.fetchAllData(),
+        color: const Color(0xFFFF6B2C),
+        child: Stack(
+          children: [
+            SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 1. Header Actions (Import Products & New Product)
+                  _buildHeader(context),
 
-                SizedBox(height: 2.h),
+                  SizedBox(height: 2.h),
 
-                // 2. Search Product Input
-                _buildSearchBar(),
+                  // 2. Search Product Input
+                  _buildSearchBar(),
 
-                SizedBox(height: 1.5.h),
+                  SizedBox(height: 1.5.h),
 
-                // 3. Dropdowns: Category & Brand (Side-by-side)
-                _buildCategoryAndBrandDropdowns(),
+                  // 3. Dropdowns: Category & Brand (Side-by-side)
+                  _buildCategoryAndBrandDropdowns(),
 
-                SizedBox(height: 1.8.h),
+                  SizedBox(height: 1.8.h),
 
-                // 4. Quick Action Buttons: Excel, PDF, All Barcodes, Price History
-                _buildActionButtonsRow(),
+                  // 4. Quick Action Buttons: Excel, PDF, All Barcodes, Price History
+                  _buildActionButtonsRow(),
 
-                SizedBox(height: 2.h),
+                  SizedBox(height: 2.h),
 
-                // 5. Products Cards List
-                _buildProductsCardsList(),
+                  // 5. Products Cards List
+                  _buildProductsCardsList(),
 
-                SizedBox(height: 10.h),
-              ],
-            ),
-          ),
-
-          // Floating Calculator Dialog
-          if (_isCalculatorOpen)
-            Positioned(
-              right: 4.w,
-              bottom: 9.h,
-              child: CalculatorWidget(
-                onClose: () {
-                  setState(() {
-                    _isCalculatorOpen = false;
-                  });
-                },
+                  SizedBox(height: 10.h),
+                ],
               ),
             ),
-        ],
+
+            // Floating Calculator Dialog
+            if (_isCalculatorOpen)
+              Positioned(
+                right: 4.w,
+                bottom: 9.h,
+                child: CalculatorWidget(
+                  onClose: () {
+                    setState(() {
+                      _isCalculatorOpen = false;
+                    });
+                  },
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -853,7 +549,9 @@ class _ProductScreenState extends State<ProductScreen> {
       ),
       child: TextField(
         controller: _searchController,
-        onChanged: (_) => setState(() {}),
+        onChanged: (val) {
+          _controller.searchQuery.value = val;
+        },
         style: TextStyle(
           fontSize: 14.sp,
           color: const Color(0xFF0F172A),
@@ -869,15 +567,15 @@ class _ProductScreenState extends State<ProductScreen> {
             color: Color(0xFF94A3B8),
             size: 22,
           ),
-          suffixIcon: _searchController.text.isNotEmpty
+          suffixIcon: Obx(() => _controller.searchQuery.value.isNotEmpty
               ? IconButton(
                   icon: const Icon(Icons.clear_rounded, size: 18),
                   onPressed: () {
                     _searchController.clear();
-                    setState(() {});
+                    _controller.searchQuery.value = '';
                   },
                 )
-              : null,
+              : const SizedBox.shrink()),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 14,
@@ -890,60 +588,76 @@ class _ProductScreenState extends State<ProductScreen> {
 
   // --- 3. Category & Brand Dropdowns (Side by side) ---
   Widget _buildCategoryAndBrandDropdowns() {
-    return Row(
-      children: [
-        // Category Column
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Category',
-                style: TextStyle(
-                  fontSize: 14.sp,
-                  color: const Color(0xFF64748B),
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 5),
-              _buildDropdown(
-                value: _selectedCategory,
-                items: _categories,
-                onChanged: (val) {
-                  if (val != null) setState(() => _selectedCategory = val);
-                },
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 10),
+    return Obx(() {
+      final categoryOptions = [
+        'All Categories',
+        ..._controller.categoriesList.map((c) => c.name ?? '').where((n) => n.isNotEmpty)
+      ];
 
-        // Brand Column
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Brand',
-                style: TextStyle(
-                  fontSize: 14.sp,
-                  color: const Color(0xFF64748B),
-                  fontWeight: FontWeight.w500,
+      final brandOptions = [
+        'All Brands',
+        ..._controller.brandsList.map((b) => b.name ?? '').where((n) => n.isNotEmpty)
+      ];
+
+      return Row(
+        children: [
+          // Category Column
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Category',
+                  style: TextStyle(
+                    fontSize: 14.sp,
+                    color: const Color(0xFF64748B),
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 5),
-              _buildDropdown(
-                value: _selectedBrand,
-                items: _brands,
-                onChanged: (val) {
-                  if (val != null) setState(() => _selectedBrand = val);
-                },
-              ),
-            ],
+                const SizedBox(height: 5),
+                _buildDropdown(
+                  value: categoryOptions.contains(_controller.selectedCategoryFilter.value)
+                      ? _controller.selectedCategoryFilter.value
+                      : 'All Categories',
+                  items: categoryOptions,
+                  onChanged: (val) {
+                    if (val != null) _controller.selectedCategoryFilter.value = val;
+                  },
+                ),
+              ],
+            ),
           ),
-        ),
-      ],
-    );
+          const SizedBox(width: 10),
+
+          // Brand Column
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Brand',
+                  style: TextStyle(
+                    fontSize: 14.sp,
+                    color: const Color(0xFF64748B),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                _buildDropdown(
+                  value: brandOptions.contains(_controller.selectedBrandFilter.value)
+                      ? _controller.selectedBrandFilter.value
+                      : 'All Brands',
+                  items: brandOptions,
+                  onChanged: (val) {
+                    if (val != null) _controller.selectedBrandFilter.value = val;
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    });
   }
 
   Widget _buildDropdown({
@@ -961,7 +675,7 @@ class _ProductScreenState extends State<ProductScreen> {
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
-          value: value,
+          value: items.contains(value) ? value : items.first,
           isExpanded: true,
           icon: const Icon(
             Icons.keyboard_arrow_down_rounded,
@@ -1023,15 +737,6 @@ class _ProductScreenState extends State<ProductScreen> {
             onTap: _showAllBarcodesDialog,
           ),
         ),
-        const SizedBox(width: 6),
-        Expanded(
-          child: _buildPillButton(
-            icon: Icons.history_rounded,
-            label: 'Price History',
-            color: const Color(0xFF0EA5E9),
-            onTap: _showPriceHistoryDialog,
-          ),
-        ),
       ],
     );
   }
@@ -1075,47 +780,68 @@ class _ProductScreenState extends State<ProductScreen> {
 
   // --- 5. Product Cards List ---
   Widget _buildProductsCardsList() {
-    final filtered = _filteredProducts;
-
-    if (filtered.isEmpty) {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 40),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
-        ),
-        child: Center(
-          child: Column(
-            children: [
-              const Icon(
-                Icons.inventory_2_outlined,
-                size: 48,
-                color: Color(0xFF94A3B8),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'No products found matching your search.',
-                style: TextStyle(
-                  fontSize: 14.5.sp,
-                  fontWeight: FontWeight.w500,
-                  color: const Color(0xFF64748B),
-                ),
-              ),
-            ],
+    return Obx(() {
+      if (_controller.isLoadingProducts.value) {
+        return const SizedBox(
+          height: 200,
+          child: Center(
+            child: CircularProgressIndicator(color: Color(0xFFFF6B2C)),
           ),
-        ),
-      );
-    }
+        );
+      }
 
-    return Column(
-      children: filtered.map((item) => _buildProductCard(item)).toList(),
-    );
+      final filtered = _controller.filteredProducts;
+
+      if (filtered.isEmpty) {
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 40),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: Center(
+            child: Column(
+              children: [
+                const Icon(
+                  Icons.inventory_2_outlined,
+                  size: 48,
+                  color: Color(0xFF94A3B8),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'No products found matching your search.',
+                  style: TextStyle(
+                    fontSize: 14.5.sp,
+                    fontWeight: FontWeight.w500,
+                    color: const Color(0xFF64748B),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ElevatedButton.icon(
+                  onPressed: () => _controller.fetchAllData(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFFF6B2C),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                  ),
+                  icon: const Icon(Icons.refresh_rounded, size: 16, color: Colors.white),
+                  label: Text('Refresh', style: TextStyle(fontSize: 14.sp, color: Colors.white)),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+
+      return Column(
+        children: filtered.map((item) => _buildProductCard(item)).toList(),
+      );
+    });
   }
 
   // --- Single Product Card ---
-  Widget _buildProductCard(ProductItem item) {
+  Widget _buildProductCard(product_modal.Data item) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -1141,7 +867,7 @@ class _ProductScreenState extends State<ProductScreen> {
             children: [
               Expanded(
                 child: Text(
-                  item.name,
+                  item.name ?? 'Unnamed Product',
                   style: TextStyle(
                     fontSize: 15.5.sp,
                     fontWeight: FontWeight.w800,
@@ -1155,16 +881,16 @@ class _ProductScreenState extends State<ProductScreen> {
           ),
           const SizedBox(height: 12),
 
-          // 4 Core Attributes in a Row: SKU, Category, Unit, Brand
+          // Core Attributes in a Row: SKU, Category, Unit, Brand
           Row(
             children: [
-              Expanded(child: _buildAttributeItem('SKU', item.sku)),
+              Expanded(child: _buildAttributeItem('SKU', item.sKU ?? 'N/A')),
               const SizedBox(width: 6),
-              Expanded(child: _buildAttributeItem('Category', item.category)),
+              Expanded(child: _buildAttributeItem('Category', item.category?.name ?? 'N/A')),
               const SizedBox(width: 6),
-              Expanded(child: _buildAttributeItem('Unit', item.unit)),
+              Expanded(child: _buildAttributeItem('Unit', item.unit?.unitName ?? 'N/A')),
               const SizedBox(width: 6),
-              Expanded(child: _buildAttributeItem('Brand', item.brand)),
+              Expanded(child: _buildAttributeItem('Brand', item.brand?.name ?? 'N/A')),
             ],
           ),
           const SizedBox(height: 12),
@@ -1173,22 +899,19 @@ class _ProductScreenState extends State<ProductScreen> {
           const Divider(height: 1, color: Color(0xFFF1F5F9)),
           const SizedBox(height: 10),
 
-          // Bottom Row: Rent Availability
+          // Bottom Row: Price & Rent Availability
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(
-                child: Text(
-                  'Rent Availability',
-                  style: TextStyle(
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF64748B),
-                  ),
+              Text(
+                'Price: ₹ ${item.price ?? '0'}',
+                style: TextStyle(
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFFFF6B2C),
                 ),
               ),
-              const SizedBox(width: 8),
-              _buildAvailabilityBadge(item.isAvailable),
+              _buildAvailabilityBadge(item.isRentAvailable == 1),
             ],
           ),
         ],
@@ -1241,7 +964,7 @@ class _ProductScreenState extends State<ProductScreen> {
     );
   }
 
-  Widget _buildMoreMenuButton(ProductItem item) {
+  Widget _buildMoreMenuButton(product_modal.Data item) {
     return PopupMenuButton<String>(
       icon: Container(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
@@ -1263,11 +986,9 @@ class _ProductScreenState extends State<ProductScreen> {
         if (val == 'details') {
           _showProductDetailsDialog(item);
         } else if (val == 'edit') {
-          Get.to(() => const AddProductScreen());
+          Get.to(() => AddProductScreen(editProduct: item));
         } else if (val == 'barcode') {
           _showBarcodeDialog(item);
-        } else if (val == 'toggle') {
-          _toggleAvailability(item);
         } else if (val == 'delete') {
           _deleteProduct(item);
         }
@@ -1312,27 +1033,6 @@ class _ProductScreenState extends State<ProductScreen> {
               ),
               const SizedBox(width: 8),
               Text('View Barcode', style: TextStyle(fontSize: 14.sp)),
-            ],
-          ),
-        ),
-        PopupMenuItem(
-          value: 'toggle',
-          child: Row(
-            children: [
-              Icon(
-                item.isAvailable
-                    ? Icons.cancel_outlined
-                    : Icons.check_circle_outline,
-                size: 18,
-                color: item.isAvailable
-                    ? const Color(0xFFEF4444)
-                    : const Color(0xFF16A34A),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                item.isAvailable ? 'Mark Unavailable' : 'Mark Available',
-                style: TextStyle(fontSize: 14.sp),
-              ),
             ],
           ),
         ),
