@@ -24,7 +24,6 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   bool _isDarkMode = false; // Default to White Theme (Light Mode)
   int _selectedBottomNavIndex = 0;
-  String _selectedDatePeriod = 'Thu, 26 Sep 2026';
   String _selectedSalesPeriod = 'This Month';
   String _selectedTrendPeriod = 'This Year';
   String _activeDrawerItem = 'Dashboard';
@@ -96,12 +95,6 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (_) {
       return dateStr.length > 10 ? dateStr.substring(0, 10) : dateStr;
     }
-  }
-
-  void _updateDatePeriod(String value) {
-    setState(() {
-      _selectedDatePeriod = value;
-    });
   }
 
   void _updateSalesPeriod(String value) {
