@@ -4,6 +4,11 @@ class ApiConstants {
   // Auth Endpoints
   static const String loginEndpoint = '/api/loginapi';
   
+  // Product, Category & Order Endpoints
+  static const String getAllProductEndpoint = '/api/getAllProduct';
+  static const String getAllCategoryEndpoint = '/api/getAllCategory';
+  static const String getOrdersEndpoint = '/api/get_orders';
+  
   // Storage Keys
   static const String keyToken = 'auth_token';
   static const String keyUserData = 'user_data';

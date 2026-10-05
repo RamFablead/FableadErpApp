@@ -1,3 +1,5 @@
+// ignore_for_file: unused_element, unused_field, unused_import
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sizer/sizer.dart';
@@ -25,6 +27,7 @@ import '../screens/products/view/product_screen.dart';
 import '../screens/products/view/raw_materials_screen.dart';
 import '../screens/sales&bills/view/all_sales_screen.dart';
 import '../screens/sales&bills/view/sales_screen.dart';
+import '../screens/profile_screen.dart';
 
 /// Clean, modern, professional ERP Side Menu Drawer matching the web dashboard layout.
 class CustomDrawer extends StatefulWidget {
@@ -54,6 +57,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
   bool _isReportsExpanded = false;
   bool _isHrExpanded = false;
   bool _isSettingsExpanded = false;
+  bool _isProfileExpanded = false;
 
   @override
   void initState() {
@@ -101,11 +105,21 @@ class _CustomDrawerState extends State<CustomDrawer> {
 
     // Sales items
     if (const [
+      'Sale',
       'Sales & Bills',
       'All Sales',
       'New Sale',
     ].contains(item)) {
       _isSalesExpanded = true;
+    }
+
+    // Profile items
+    if (const [
+      'Profile',
+      'View Profile',
+      'Edit Profile',
+    ].contains(item)) {
+      _isProfileExpanded = true;
     }
 
     // Finance items
@@ -187,13 +201,13 @@ class _CustomDrawerState extends State<CustomDrawer> {
           // 1. Top Brand & User Profile Header
           _buildDrawerHeader(context, headerBg, borderColor, textPrimary, textSecondary, isDark),
 
-          // 2. Navigation Items List
+          // 2. Navigation Items List (Active: Dashboard, Products, Sale, Profile)
           Expanded(
             child: ListView(
               physics: const BouncingScrollPhysics(),
               padding: EdgeInsets.symmetric(horizontal: 2.5.w, vertical: 1.h),
               children: [
-                // Single Item: Dashboard
+                // 1. DASHBOARD MODULE
                 _buildDirectNavItem(
                   title: 'Dashboard',
                   icon: Icons.dashboard_rounded,
@@ -208,12 +222,87 @@ class _CustomDrawerState extends State<CustomDrawer> {
                   },
                 ),
 
-                SizedBox(height: 1.h),
+                SizedBox(height: 0.6.h),
+
+                // 2. PRODUCTS MODULE
+                _buildAccordionModule(
+                  title: 'Products',
+                  icon: Icons.inventory_2_rounded,
+                  isExpanded: _isProductsExpanded,
+                  onToggle: () => setState(() => _isProductsExpanded = !_isProductsExpanded),
+                  activeChildTitles: const [
+                    'Products',
+                    'All Products',
+                    'New Product',
+                    // 'All Raw Materials',
+                    // 'Import Products',
+                  ],
+                  textPrimary: textPrimary,
+                  textSecondary: textSecondary,
+                  isDark: isDark,
+                  children: [
+                    _buildSubItem('All Products', const ProductScreen(), textPrimary),
+                    _buildSubItem('New Product', const AddProductScreen(), textPrimary),
+                    // _buildSubItem('All Raw Materials', const RawMaterialsScreen(), textPrimary),
+                    // _buildSubItem('Import Products', const ImportProductScreen(), textPrimary),
+                  ],
+                ),
+
+                SizedBox(height: 0.6.h),
+
+                // 3. SALE MODULE
+                _buildAccordionModule(
+                  title: 'Sale',
+                  icon: Icons.shopping_cart_rounded,
+                  isExpanded: _isSalesExpanded,
+                  onToggle: () => setState(() => _isSalesExpanded = !_isSalesExpanded),
+                  activeChildTitles: const [
+                    'Sale',
+                    'Sales & Bills',
+                    'All Sales',
+                    'New Sale',
+                  ],
+                  textPrimary: textPrimary,
+                  textSecondary: textSecondary,
+                  isDark: isDark,
+                  children: [
+                    _buildSubItem('All Sales', const AllSalesScreen(), textPrimary),
+                    _buildSubItem('New Sale', const SalesScreen(), textPrimary),
+                  ],
+                ),
+
+                SizedBox(height: 0.6.h),
+
+                // 4. PROFILE MODULE (VIEW & EDIT PROFILE)
+                _buildAccordionModule(
+                  title: 'Profile',
+                  icon: Icons.person_rounded,
+                  isExpanded: _isProfileExpanded,
+                  onToggle: () => setState(() => _isProfileExpanded = !_isProfileExpanded),
+                  activeChildTitles: const [
+                    'Profile',
+                    'View Profile',
+                    'Edit Profile',
+                  ],
+                  textPrimary: textPrimary,
+                  textSecondary: textSecondary,
+                  isDark: isDark,
+                  children: [
+                    _buildSubItem('View Profile', const ProfileScreen(), textPrimary),
+                    _buildSubItem('Edit Profile', const ProfileScreen(openEditDialog: true), textPrimary),
+                  ],
+                ),
+
+                SizedBox(height: 1.5.h),
+
+                /* ================================================================
+                   OTHER MODULES COMMENTED OUT AS PER REQUEST (CAN BE RESTORED)
+                   ================================================================
 
                 // ================= SECTION: CATALOG & PRODUCTS =================
                 _buildSectionHeader('CATALOG & INVENTORY', textSecondary),
 
-                // 1. Catalog Setup Accordion (Matching User's Screenshot Exactly)
+                // 1. Catalog Setup Accordion
                 _buildAccordionModule(
                   title: 'Catalog Setup',
                   icon: Icons.label_rounded,
@@ -242,31 +331,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                   ],
                 ),
 
-                // 2. Products Accordion
-                _buildAccordionModule(
-                  title: 'Products',
-                  icon: Icons.inventory_2_rounded,
-                  isExpanded: _isProductsExpanded,
-                  onToggle: () => setState(() => _isProductsExpanded = !_isProductsExpanded),
-                  activeChildTitles: const [
-                    'Products',
-                    'All Products',
-                    'New Product',
-                    'All Raw Materials',
-                    'Import Products',
-                  ],
-                  textPrimary: textPrimary,
-                  textSecondary: textSecondary,
-                  isDark: isDark,
-                  children: [
-                    _buildSubItem('All Products', const ProductScreen(), textPrimary),
-                    _buildSubItem('New Product', const AddProductScreen(), textPrimary),
-                    _buildSubItem('All Raw Materials', const RawMaterialsScreen(), textPrimary),
-                    _buildSubItem('Import Products', const ImportProductScreen(), textPrimary),
-                  ],
-                ),
-
-                // 3. Manage Inventory Accordion
+                // Manage Inventory Accordion
                 _buildAccordionModule(
                   title: 'Manage Inventory',
                   icon: Icons.warehouse_rounded,
@@ -287,7 +352,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                   ],
                 ),
 
-                // 4. Products Delivery (Direct Item)
+                // Products Delivery (Direct Item)
                 _buildDirectNavItem(
                   title: 'Products Delivery',
                   icon: Icons.local_shipping_rounded,
@@ -305,27 +370,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                 // ================= SECTION: SALES & BILLING =================
                 _buildSectionHeader('SALES & ORDERS', textSecondary),
 
-                // 1. Sales & Bills Accordion
-                _buildAccordionModule(
-                  title: 'Sales & Bills',
-                  icon: Icons.shopping_cart_rounded,
-                  isExpanded: _isSalesExpanded,
-                  onToggle: () => setState(() => _isSalesExpanded = !_isSalesExpanded),
-                  activeChildTitles: const [
-                    'Sales & Bills',
-                    'All Sales',
-                    'New Sale',
-                  ],
-                  textPrimary: textPrimary,
-                  textSecondary: textSecondary,
-                  isDark: isDark,
-                  children: [
-                    _buildSubItem('All Sales', const AllSalesScreen(), textPrimary),
-                    _buildSubItem('New Sale / POS', const SalesScreen(), textPrimary),
-                  ],
-                ),
-
-                // 2. Purchases (Direct Item)
+                // Purchases (Direct Item)
                 _buildDirectNavItem(
                   title: 'Purchases',
                   icon: Icons.receipt_long_rounded,
@@ -338,7 +383,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                   },
                 ),
 
-                // 3. Vendors & Financers Accordion
+                // Vendors & Financers Accordion
                 _buildAccordionModule(
                   title: 'Vendors & Financers',
                   icon: Icons.handshake_rounded,
@@ -364,7 +409,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                 // ================= SECTION: ACCOUNTS & REPORTS =================
                 _buildSectionHeader('FINANCE & REPORTS', textSecondary),
 
-                // 1. Accounting Accordion
+                // Accounting Accordion
                 _buildAccordionModule(
                   title: 'Accounting',
                   icon: Icons.account_balance_rounded,
@@ -393,7 +438,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                   ],
                 ),
 
-                // 2. Reports Accordion
+                // Reports Accordion
                 _buildAccordionModule(
                   title: 'Reports & Analytics',
                   icon: Icons.analytics_rounded,
@@ -424,7 +469,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                 // ================= SECTION: SYSTEM & PREFERENCES =================
                 _buildSectionHeader('PREFERENCES', textSecondary),
 
-                // 1. HR Accordion
+                // HR Accordion
                 _buildAccordionModule(
                   title: 'Human Resources',
                   icon: Icons.badge_rounded,
@@ -444,7 +489,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                   ],
                 ),
 
-                // 2. Settings Accordion
+                // Settings Accordion
                 _buildAccordionModule(
                   title: 'Settings',
                   icon: Icons.tune_rounded,
@@ -463,6 +508,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                     _buildDirectSubAction('Company Profile', textPrimary),
                   ],
                 ),
+                ================================================================ */
 
                 SizedBox(height: 1.5.h),
               ],
@@ -558,14 +604,20 @@ class _CustomDrawerState extends State<CustomDrawer> {
           SizedBox(height: 1.5.h),
 
           // User Profile Card
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF0F172A) : Colors.white,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: borderColor),
-            ),
-            child: Row(
+          InkWell(
+            onTap: () {
+              Navigator.pop(context);
+              Get.to(() => const ProfileScreen());
+            },
+            borderRadius: BorderRadius.circular(10),
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: borderColor),
+              ),
+              child: Row(
               children: [
                 // Avatar with online status
                 Stack(
@@ -672,6 +724,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                 ),
               ],
             ),
+          ),
           ),
         ],
       ),

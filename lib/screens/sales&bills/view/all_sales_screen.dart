@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sizer/sizer.dart';
 import '../../../core/widgets/calculator_widget.dart';
+import '../../../models/order_model.dart';
+import '../../../services/order_service.dart';
 import '../../../widgets/custom_app_bar.dart';
 import '../../../widgets/custom_bottom_bar.dart';
 import '../../../widgets/custom_drawer.dart';
@@ -105,127 +107,21 @@ class _AllSalesScreenState extends State<AllSalesScreen> {
   // Floating Calculator overlay
   bool _isCalculatorOpen = false;
 
-  // Initial dummy bills matching the screenshot
-  final List<SalesBillItem> _allBills = [
-    SalesBillItem(
-      orderNo: 'SI/HO/148',
-      date: DateTime(2026, 10, 2),
-      customer: 'Rahul Sharma',
-      staff: 'Amrita Patel',
-      orderType: 'Self Pickup',
-      orderStatus: 'Pending',
-      paymentStatus: 'Unpaid',
-      amount: 2500.00,
-      hasGst: false,
-      iconBgColor: const Color(0xFFFFF7ED),
-      iconColor: const Color(0xFFEA580C),
-    ),
-    SalesBillItem(
-      orderNo: 'SI/HO/147',
-      date: DateTime(2026, 9, 29),
-      customer: 'Priya Patel',
-      staff: 'Neha Shah',
-      orderType: 'Self Pickup',
-      orderStatus: 'Paid',
-      paymentStatus: 'Paid',
-      amount: 1850.00,
-      hasGst: false,
-      iconBgColor: const Color(0xFFF0FDF4),
-      iconColor: const Color(0xFF16A34A),
-    ),
-    SalesBillItem(
-      orderNo: 'SI/HO/146',
-      date: DateTime(2026, 9, 28),
-      customer: 'Amit Mehta',
-      staff: 'Vikram Chauhan',
-      orderType: 'Home Delivery',
-      orderStatus: 'Pending',
-      paymentStatus: 'Unpaid',
-      amount: 2700.00,
-      hasGst: false,
-      iconBgColor: const Color(0xFFFFF7ED),
-      iconColor: const Color(0xFFEA580C),
-    ),
-    SalesBillItem(
-      orderNo: 'SI/HO/145',
-      date: DateTime(2026, 9, 25),
-      customer: 'Neha Shah',
-      staff: 'Rohan Desai',
-      orderType: 'Self Pickup',
-      orderStatus: 'Paid',
-      paymentStatus: 'Paid',
-      amount: 4990.00,
-      hasGst: false,
-      iconBgColor: const Color(0xFFEFF6FF),
-      iconColor: const Color(0xFF2563EB),
-    ),
-    SalesBillItem(
-      orderNo: 'SI/HO/144',
-      date: DateTime(2026, 9, 24),
-      customer: 'Rohan Desai',
-      staff: 'Priya Patel',
-      orderType: 'Home Delivery',
-      orderStatus: 'Delivered',
-      paymentStatus: 'Paid',
-      amount: 6750.00,
-      hasGst: false,
-      iconBgColor: const Color(0xFFFAF5FF),
-      iconColor: const Color(0xFF9333EA),
-    ),
-    SalesBillItem(
-      orderNo: 'SI/HO/143',
-      date: DateTime(2026, 9, 20),
-      customer: 'Suresh Parmar',
-      staff: 'Amrita Patel',
-      orderType: 'Self Pickup',
-      orderStatus: 'Paid',
-      paymentStatus: 'Paid',
-      amount: 13860.00,
-      hasGst: false,
-      iconBgColor: const Color(0xFFF0FDF4),
-      iconColor: const Color(0xFF16A34A),
-    ),
-    // Sample items for With GST
-    SalesBillItem(
-      orderNo: 'SI/GST/201',
-      date: DateTime(2026, 9, 30),
-      customer: 'KETANKUMAR SURESHCHANDRA',
-      staff: 'Amrita Patel',
-      orderType: 'Self Pickup',
-      orderStatus: 'Paid',
-      paymentStatus: 'Paid',
-      amount: 15400.00,
-      hasGst: true,
-      iconBgColor: const Color(0xFFF0FDF4),
-      iconColor: const Color(0xFF16A34A),
-    ),
-    SalesBillItem(
-      orderNo: 'SI/GST/200',
-      date: DateTime(2026, 9, 27),
-      customer: 'Sneha Makvana',
-      staff: 'Neha Shah',
-      orderType: 'Home Delivery',
-      orderStatus: 'Pending',
-      paymentStatus: 'Unpaid',
-      amount: 8200.00,
-      hasGst: true,
-      iconBgColor: const Color(0xFFFFF7ED),
-      iconColor: const Color(0xFFEA580C),
-    ),
-    SalesBillItem(
-      orderNo: 'SI/GST/199',
-      date: DateTime(2026, 9, 23),
-      customer: 'Vatsal Patel',
-      staff: 'Vikram Chauhan',
-      orderType: 'Courier Delivery',
-      orderStatus: 'Paid',
-      paymentStatus: 'Paid',
-      amount: 11250.00,
-      hasGst: true,
-      iconBgColor: const Color(0xFFEFF6FF),
-      iconColor: const Color(0xFF2563EB),
-    ),
-  ];
+  // --- Live API State ---
+  final OrderService _orderService = OrderService();
+  final List<OrderItemModel> _allOrders = [];
+  bool _isLoading = false;
+  bool _isLoadingMore = false;
+  bool _hasError = false;
+  String _errorMessage = '';
+  int _currentPage = 1;
+  int _lastPage = 1;
+  double _totalAmount = 0;
+  double _totalPendingAmount = 0;
+  double _totalPaidAmount = 0;
+
+  // Scroll controller for pagination
+  final ScrollController _scrollController = ScrollController();
 
   // Dummy Drafts
   final List<SalesDraftItem> _drafts = [
@@ -283,102 +179,89 @@ class _AllSalesScreenState extends State<AllSalesScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _fetchOrders(page: 1, isRefresh: true);
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
   void dispose() {
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
-  // Filtered bills calculation
-  List<SalesBillItem> get _filteredBills {
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      _loadMoreOrders();
+    }
+  }
+
+  Future<void> _fetchOrders({int page = 1, bool isRefresh = false}) async {
+    if (_isLoading || _isLoadingMore) return;
+    setState(() {
+      if (isRefresh) {
+        _isLoading = true;
+        _hasError = false;
+        _allOrders.clear();
+        _currentPage = 1;
+        _lastPage = 1;
+      } else {
+        _isLoadingMore = true;
+      }
+    });
+    try {
+      final result = await _orderService.getOrders(page: page);
+      setState(() {
+        _allOrders.addAll(result.data);
+        _currentPage = result.pagination?.currentPage ?? page;
+        _lastPage = result.pagination?.lastPage ?? 1;
+        _totalAmount = result.totalAmount;
+        _totalPendingAmount = result.totalPendingAmount;
+        _totalPaidAmount = result.totalPaidAmount;
+        _isLoading = false;
+        _isLoadingMore = false;
+        _hasError = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _isLoadingMore = false;
+        _hasError = isRefresh;
+        _errorMessage = e.toString();
+      });
+    }
+  }
+
+  Future<void> _loadMoreOrders() async {
+    if (_isLoadingMore || _currentPage >= _lastPage) return;
+    await _fetchOrders(page: _currentPage + 1);
+  }
+
+  // Filtered orders from live API data
+  List<OrderItemModel> get _filteredOrders {
     final query = _searchController.text.trim().toLowerCase();
     final isGstSelected = _selectedGstTab == 'With GST Bills';
 
-    var list = _allBills.where((b) {
-      // GST Filter
-      if (b.hasGst != isGstSelected) return false;
+    var list = _allOrders.where((order) {
+      // 1. GST Filter
+      if (order.isWithGst != isGstSelected) return false;
 
-      // Search Query
+      // 2. Search Query (orderNumber, customerName, staffName)
       if (query.isNotEmpty) {
-        final matchesNo = b.orderNo.toLowerCase().contains(query);
-        final matchesCust = b.customer.toLowerCase().contains(query);
-        final matchesStaff = b.staff.toLowerCase().contains(query);
+        final matchesNo = order.orderNumber.toLowerCase().contains(query);
+        final matchesCust = order.customerName.toLowerCase().contains(query);
+        final matchesStaff = order.effectiveStaffName.toLowerCase().contains(query);
         if (!matchesNo && !matchesCust && !matchesStaff) return false;
-      }
-
-      // Month Filter
-      if (_selectedMonth != 'All Months') {
-        final monthIdx = _monthsList.indexOf(_selectedMonth);
-        if (b.date.month != monthIdx) return false;
-      }
-
-      // Year Filter
-      if (_selectedYear != 'All Years') {
-        if (b.date.year.toString() != _selectedYear) return false;
-      }
-
-      // Staff Filter
-      if (_selectedStaff != 'All Staff') {
-        if (b.staff != _selectedStaff) return false;
-      }
-
-      // Order Type Filter
-      if (_selectedOrderType != 'All Order Types') {
-        if (b.orderType != _selectedOrderType) return false;
-      }
-
-      // Status Filter
-      if (_selectedStatus != 'All Statuses') {
-        if (b.orderStatus != _selectedStatus && b.paymentStatus != _selectedStatus) {
-          return false;
-        }
-      }
-
-      // Specific Date Filter
-      if (_selectedDate != null) {
-        if (b.date.year != _selectedDate!.year ||
-            b.date.month != _selectedDate!.month ||
-            b.date.day != _selectedDate!.day) {
-          return false;
-        }
       }
 
       return true;
     }).toList();
 
-    // Sorting
-    switch (_selectedSort) {
-      case 'Oldest First':
-        list.sort((a, b) => a.date.compareTo(b.date));
-        break;
-      case 'Highest Amount':
-        list.sort((a, b) => b.amount.compareTo(a.amount));
-        break;
-      case 'Lowest Amount':
-        list.sort((a, b) => a.amount.compareTo(b.amount));
-        break;
-      case 'Latest First':
-      default:
-        list.sort((a, b) => b.date.compareTo(a.date));
-        break;
-    }
-
     return list;
   }
-
-  // Statistics
-  double get _totalPending {
-    return _filteredBills
-        .where((b) => b.paymentStatus == 'Unpaid')
-        .fold(0.0, (sum, b) => sum + b.amount);
-  }
-
-  double get _totalPaid {
-    return _filteredBills
-        .where((b) => b.paymentStatus == 'Paid')
-        .fold(0.0, (sum, b) => sum + b.amount);
-  }
-
-  double get _grandTotal => _totalPending + _totalPaid;
 
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
@@ -703,7 +586,7 @@ class _AllSalesScreenState extends State<AllSalesScreen> {
   }
 
   // --- Show Bill Action Bottom Sheet ---
-  void _showBillActionSheet(SalesBillItem bill) {
+  void _showBillActionSheet(OrderItemModel order) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
@@ -721,7 +604,7 @@ class _AllSalesScreenState extends State<AllSalesScreen> {
                 children: [
                   Expanded(
                     child: Text(
-                      'Order Options • ${bill.orderNo}',
+                      'Order Options • ${order.orderNumber}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -745,8 +628,8 @@ class _AllSalesScreenState extends State<AllSalesScreen> {
                 onTap: () {
                   Navigator.pop(ctx);
                   Get.snackbar(
-                    'Order ${bill.orderNo}',
-                    'Viewing bill for ${bill.customer}',
+                    'Order ${order.orderNumber}',
+                    'Viewing bill for ${order.customerName}',
                     snackPosition: SnackPosition.BOTTOM,
                     backgroundColor: const Color(0xFF0F172A),
                     colorText: Colors.white,
@@ -796,11 +679,11 @@ class _AllSalesScreenState extends State<AllSalesScreen> {
                 onTap: () {
                   Navigator.pop(ctx);
                   setState(() {
-                    _allBills.removeWhere((b) => b.orderNo == bill.orderNo);
+                    _allOrders.removeWhere((o) => o.id == order.id);
                   });
                   Get.snackbar(
                     'Deleted',
-                    'Bill ${bill.orderNo} removed successfully',
+                    'Bill ${order.orderNumber} removed successfully',
                     snackPosition: SnackPosition.BOTTOM,
                     backgroundColor: const Color(0xFFEF4444),
                     colorText: Colors.white,
@@ -837,15 +720,14 @@ class _AllSalesScreenState extends State<AllSalesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final bool canGoBack = Navigator.canPop(context);
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      appBar: CustomAppBar(
+      appBar: const CustomAppBar(
         title: 'All Sales & Bills',
-        showBackButton: canGoBack,
+        showBackButton: false,
         isDarkMode: false,
       ),
-      drawer: const CustomDrawer(isDarkMode: false, activeItem: 'Sales'),
+      drawer: const CustomDrawer(isDarkMode: false, activeItem: 'Sale'),
       bottomNavigationBar: CustomBottomBar(
         selectedIndex: 2, // Sale tab
         isDarkMode: false,
@@ -868,23 +750,55 @@ class _AllSalesScreenState extends State<AllSalesScreen> {
       ),
       body: Stack(
         children: [
-          SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(16, 20, 16, 90),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildHeaderBar(),
-                const SizedBox(height: 16),
-                _buildGstTabSwitcher(),
-                const SizedBox(height: 14),
-                _buildSearchBar(),
-                const SizedBox(height: 12),
-                _buildFilterDropdownsGrid(),
-                const SizedBox(height: 14),
-                _buildSummaryAndExportRow(),
-                const SizedBox(height: 16),
-                _buildBillsList(),
-              ],
+          RefreshIndicator(
+            color: const Color(0xFFFF6B2C),
+            onRefresh: () => _fetchOrders(page: 1, isRefresh: true),
+            child: SingleChildScrollView(
+              controller: _scrollController,
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHeaderBar(),
+                  const SizedBox(height: 14),
+
+                  // 1. With GST / Without GST Tabs Switcher (Active)
+                  _buildGstTabSwitcher(),
+                  const SizedBox(height: 14),
+
+                  // 2. Search Bar (Active)
+                  _buildSearchBar(),
+                  const SizedBox(height: 14),
+
+                  /* ================================================================
+                     DROPDOWN FILTERS COMMENTED OUT AS PER REQUEST (CAN BE RESTORED)
+                     ================================================================
+                  _buildFilterDropdownsGrid(),
+                  const SizedBox(height: 14),
+                  ================================================================ */
+
+                  /*
+                  // Summary Metrics & Export Row (Commented Out as per request)
+                  _buildSummaryAndExportRow(),
+                  const SizedBox(height: 16),
+                  */
+
+                  _buildBillsList(),
+
+                  // Load more indicator
+                  if (_isLoadingMore)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          color: Color(0xFFFF6B2C),
+                          strokeWidth: 2,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
 
@@ -899,171 +813,147 @@ class _AllSalesScreenState extends State<AllSalesScreen> {
             ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        heroTag: 'all_sales_fab',
-        onPressed: () {
-          setState(() {
-            _isCalculatorOpen = !_isCalculatorOpen;
-          });
-        },
-        backgroundColor: const Color(0xFF1E1B4B),
-        elevation: 4,
-        shape: const CircleBorder(),
-        child: const Icon(
-          Icons.calculate_outlined,
-          color: Colors.white,
-          size: 26,
-        ),
-      ),
     );
   }
 
-  // --- 1. Header Bar: Back Arrow, Title, "All Drafts", "Import", "+ New Bill" ---
+  // --- 1. Top Action Bar: Clean Bill Counter on left, New Sale Button on right ---
   Widget _buildHeaderBar() {
     return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        IconButton(
-          icon: const Icon(
-            Icons.arrow_back_rounded,
-            color: Color(0xFF0F172A),
-            size: 24,
+        // Left: Clean Active Bill Counter
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1E2746).withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: const Color(0xFF1E2746).withValues(alpha: 0.15)),
           ),
-          onPressed: () {
-            if (Navigator.canPop(context)) {
-              Navigator.pop(context);
-            } else {
-              Get.back();
-            }
-          },
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.receipt_long_rounded,
+                color: Color(0xFF1E2746),
+                size: 15,
+              ),
+              const SizedBox(width: 5),
+              Text(
+                '${_filteredOrders.length} Bills',
+                style: TextStyle(
+                  fontSize: 12.5.sp,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF1E2746),
+                ),
+              ),
+            ],
+          ),
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            'All Sales & Bills',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 16.sp,
-              fontWeight: FontWeight.w800,
+
+        // Right: Action Buttons (All Drafts and Import commented out as requested)
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            /*
+            // "All Drafts" Navy button (Commented Out)
+            Material(
               color: const Color(0xFF0F172A),
-              letterSpacing: -0.3,
+              borderRadius: BorderRadius.circular(8),
+              child: InkWell(
+                onTap: _showDraftsDialog,
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6.5),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.description_outlined,
+                        color: Colors.white,
+                        size: 14,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'All Drafts',
+                        style: TextStyle(
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
-          ),
-        ),
-        const SizedBox(width: 6),
+            const SizedBox(width: 6),
 
-        // Action Buttons: "All Drafts", "Import", "+ New Bill"
-        Flexible(
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // "All Drafts" Navy button
-                Material(
-                  color: const Color(0xFF0F172A),
-                  borderRadius: BorderRadius.circular(8),
-                  child: InkWell(
-                    onTap: _showDraftsDialog,
-                    borderRadius: BorderRadius.circular(8),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 6),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.description_outlined,
-                            color: Colors.white,
-                            size: 14,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            'All Drafts',
-                            style: TextStyle(
-                              fontSize: 14.sp,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
+            // "Import" Orange button (Commented Out)
+            Material(
+              color: const Color(0xFFF97316),
+              borderRadius: BorderRadius.circular(8),
+              child: InkWell(
+                onTap: _showImportDialog,
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6.5),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.file_upload_outlined,
+                        color: Colors.white,
+                        size: 14,
                       ),
-                    ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Import',
+                        style: TextStyle(
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(width: 6),
-
-                // "Import" Amber/Orange button
-                Material(
-                  color: const Color(0xFFF97316),
-                  borderRadius: BorderRadius.circular(8),
-                  child: InkWell(
-                    onTap: _showImportDialog,
-                    borderRadius: BorderRadius.circular(8),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 6),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.file_upload_outlined,
-                            color: Colors.white,
-                            size: 14,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Import',
-                            style: TextStyle(
-                              fontSize: 14.sp,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 6),
-
-                // "+ New Bill" Vibrant Orange button
-                Material(
-                  color: const Color(0xFFFF6B2C),
-                  borderRadius: BorderRadius.circular(8),
-                  child: InkWell(
-                    onTap: () => Get.to(() => const SalesScreen()),
-                    borderRadius: BorderRadius.circular(8),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 6),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.add_rounded,
-                            color: Colors.white,
-                            size: 14,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            'New Bill',
-                            style: TextStyle(
-                              fontSize: 14.sp,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
+            const SizedBox(width: 6),
+            */
+
+            // "+ New Sale" Vibrant Orange button
+            Material(
+              color: const Color(0xFFFF6B2C),
+              borderRadius: BorderRadius.circular(8),
+              child: InkWell(
+                onTap: () => Get.to(() => const SalesScreen()),
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.add_rounded,
+                        color: Colors.white,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'New Sale',
+                        style: TextStyle(
+                          fontSize: 12.5.sp,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -1387,7 +1277,7 @@ class _AllSalesScreenState extends State<AllSalesScreen> {
           // Total Pending
           _buildStatCard(
             label: 'Total Pending',
-            amount: _formatCurrency(_totalPending),
+            amount: _formatCurrency(_totalPendingAmount),
             bgColor: const Color(0xFFFEF2F2),
             borderColor: const Color(0xFFFECACA),
             textColor: const Color(0xFFEF4444),
@@ -1397,7 +1287,7 @@ class _AllSalesScreenState extends State<AllSalesScreen> {
           // Total Paid
           _buildStatCard(
             label: 'Total Paid',
-            amount: _formatCurrency(_totalPaid),
+            amount: _formatCurrency(_totalPaidAmount),
             bgColor: const Color(0xFFF0FDF4),
             borderColor: const Color(0xFFBBF7D0),
             textColor: const Color(0xFF16A34A),
@@ -1407,7 +1297,7 @@ class _AllSalesScreenState extends State<AllSalesScreen> {
           // Grand Total
           _buildStatCard(
             label: 'Total',
-            amount: _formatCurrency(_grandTotal),
+            amount: _formatCurrency(_totalAmount),
             bgColor: const Color(0xFFEFF6FF),
             borderColor: const Color(0xFFBFDBFE),
             textColor: const Color(0xFF2563EB),
@@ -1544,9 +1434,77 @@ class _AllSalesScreenState extends State<AllSalesScreen> {
 
   // --- 6. Sales & Bills Cards List ---
   Widget _buildBillsList() {
-    final bills = _filteredBills;
+    // Loading skeleton
+    if (_isLoading) {
+      return Column(
+        children: List.generate(5, (i) => _buildSkeletonCard()),
+      );
+    }
 
-    if (bills.isEmpty) {
+    // Error state
+    if (_hasError) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+        ),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: const BoxDecoration(
+                color: Color(0xFFFEF2F2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.wifi_off_rounded,
+                color: Color(0xFFEF4444),
+                size: 32,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Failed to load orders',
+              style: TextStyle(
+                fontSize: 15.sp,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFF0F172A),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              _errorMessage,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14.sp,
+                color: const Color(0xFF64748B),
+              ),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: () => _fetchOrders(page: 1, isRefresh: true),
+              icon: const Icon(Icons.refresh_rounded, size: 16),
+              label: const Text('Retry'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFF6B2C),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final orders = _filteredOrders;
+
+    if (orders.isEmpty) {
       return Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 16),
@@ -1592,214 +1550,301 @@ class _AllSalesScreenState extends State<AllSalesScreen> {
     }
 
     return Column(
-      children: bills.map((bill) {
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x04000000),
-                blurRadius: 6,
-                offset: Offset(0, 2),
-              ),
-            ],
+      children: orders.map((order) => _buildOrderCard(order)).toList(),
+    );
+  }
+
+  /// Icon colour helper based on payment status
+  _OrderIconStyle _iconStyleForOrder(OrderItemModel order) {
+    if (order.isPaid) {
+      return _OrderIconStyle(
+        bg: const Color(0xFFF0FDF4),
+        icon: const Color(0xFF16A34A),
+      );
+    }
+    if (order.displayPaymentStatus == 'Partially Paid') {
+      return _OrderIconStyle(
+        bg: const Color(0xFFEFF6FF),
+        icon: const Color(0xFF2563EB),
+      );
+    }
+    return _OrderIconStyle(
+      bg: const Color(0xFFFFF7ED),
+      icon: const Color(0xFFEA580C),
+    );
+  }
+
+  Widget _buildOrderCard(OrderItemModel order) {
+    final style = _iconStyleForOrder(order);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x04000000),
+            blurRadius: 6,
+            offset: Offset(0, 2),
           ),
-          child: Row(
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // Left Icon Badge
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: style.bg,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              Icons.description_outlined,
+              color: style.icon,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 10),
+
+          // Order No, Date, Customer Name
+          Expanded(
+            flex: 12,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  order.orderNumber,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 15.sp,
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF0F172A),
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.calendar_today_outlined,
+                      size: 13,
+                      color: Color(0xFF64748B),
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        _formatDate(order.effectiveDate),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 14.sp,
+                          color: const Color(0xFF64748B),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.person_outline_rounded,
+                      size: 14,
+                      color: Color(0xFF64748B),
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        order.customerName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 14.sp,
+                          color: const Color(0xFF475569),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+
+          // Status Badges
+          Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Left Circular/Rounded Icon Badge
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: bill.iconBgColor,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
-                  Icons.description_outlined,
-                  color: bill.iconColor,
-                  size: 22,
-                ),
-              ),
-              const SizedBox(width: 10),
-
-              // Order No, Date, Customer Name
-              Expanded(
-                flex: 12,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      bill.orderNo,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 15.sp,
-                        fontWeight: FontWeight.w800,
-                        color: const Color(0xFF0F172A),
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.calendar_today_outlined,
-                          size: 13,
-                          color: Color(0xFF64748B),
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            _formatDate(bill.date),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 14.sp,
-                              color: const Color(0xFF64748B),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.person_outline_rounded,
-                          size: 14,
-                          color: Color(0xFF64748B),
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            bill.customer,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 14.sp,
-                              color: const Color(0xFF475569),
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-
-              // Status Badges (Pending/Paid, Unpaid/Paid)
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  _buildStatusBadge(bill.orderStatus),
-                  const SizedBox(height: 4),
-                  _buildPaymentBadge(bill.paymentStatus),
-                ],
-              ),
-              const SizedBox(width: 10),
-
-              // Total, Amount, Order Type, Staff Name
-              Expanded(
-                flex: 11,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Total',
-                      style: TextStyle(
-                        fontSize: 14.sp,
-                        color: const Color(0xFF64748B),
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
-                    Text(
-                      _formatCurrency(bill.amount),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 15.sp,
-                        fontWeight: FontWeight.w800,
-                        color: const Color(0xFF0F172A),
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.local_shipping_outlined,
-                          size: 13,
-                          color: Color(0xFF64748B),
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            bill.orderType,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 14.sp,
-                              color: const Color(0xFF64748B),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.person_outline_rounded,
-                          size: 13,
-                          color: Color(0xFF64748B),
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            bill.staff,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 14.sp,
-                              color: const Color(0xFF64748B),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 4),
-
-              // 3-Dots Action Button
-              Container(
-                width: 32,
-                height: 38,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
-                child: IconButton(
-                  icon: const Icon(
-                    Icons.more_vert_rounded,
-                    color: Color(0xFF64748B),
-                    size: 18,
-                  ),
-                  onPressed: () => _showBillActionSheet(bill),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                ),
-              ),
+              _buildStatusBadge(order.displayPaymentStatus),
+              const SizedBox(height: 4),
+              _buildPaymentBadge(order.isPaid ? 'Paid' : 'Unpaid'),
             ],
           ),
-        );
-      }).toList(),
+          const SizedBox(width: 10),
+
+          // Total, Amount, Order Type, Staff
+          Expanded(
+            flex: 11,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Total',
+                  style: TextStyle(
+                    fontSize: 14.sp,
+                    color: const Color(0xFF64748B),
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+                Text(
+                  _formatCurrency(order.totalAmount),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 15.sp,
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF0F172A),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.local_shipping_outlined,
+                      size: 13,
+                      color: Color(0xFF64748B),
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        order.displayOrderType,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 14.sp,
+                          color: const Color(0xFF64748B),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.person_outline_rounded,
+                      size: 13,
+                      color: Color(0xFF64748B),
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        order.effectiveStaffName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 14.sp,
+                          color: const Color(0xFF64748B),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 4),
+
+          // 3-Dots Action Button
+          Container(
+            width: 32,
+            height: 38,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: IconButton(
+              icon: const Icon(
+                Icons.more_vert_rounded,
+                color: Color(0xFF64748B),
+                size: 18,
+              ),
+              onPressed: () => _showBillActionSheet(order),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSkeletonCard() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        children: [
+          _shimmerBox(44, 44, radius: 10),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _shimmerBox(12, 100),
+                const SizedBox(height: 6),
+                _shimmerBox(10, 140),
+                const SizedBox(height: 6),
+                _shimmerBox(10, 120),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Column(
+            children: [
+              _shimmerBox(22, 64, radius: 4),
+              const SizedBox(height: 4),
+              _shimmerBox(22, 64, radius: 4),
+            ],
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _shimmerBox(10, 40),
+                const SizedBox(height: 4),
+                _shimmerBox(12, 90),
+                const SizedBox(height: 6),
+                _shimmerBox(10, 80),
+                const SizedBox(height: 6),
+                _shimmerBox(10, 70),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _shimmerBox(double height, double width, {double radius = 6}) {
+    return Container(
+      height: height,
+      width: width,
+      decoration: BoxDecoration(
+        color: const Color(0xFFE2E8F0),
+        borderRadius: BorderRadius.circular(radius),
+      ),
     );
   }
 
@@ -1811,6 +1856,10 @@ class _AllSalesScreenState extends State<AllSalesScreen> {
       case 'Paid':
         bg = const Color(0xFFF0FDF4);
         text = const Color(0xFF16A34A);
+        break;
+      case 'Partially Paid':
+        bg = const Color(0xFFEFF6FF);
+        text = const Color(0xFF2563EB);
         break;
       case 'Delivered':
         bg = const Color(0xFFEFF6FF);
@@ -1824,7 +1873,7 @@ class _AllSalesScreenState extends State<AllSalesScreen> {
     }
 
     return Container(
-      width: 64,
+      width: 80,
       padding: const EdgeInsets.symmetric(vertical: 3),
       alignment: Alignment.center,
       decoration: BoxDecoration(
@@ -1836,7 +1885,7 @@ class _AllSalesScreenState extends State<AllSalesScreen> {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
-          fontSize: 14.sp,
+          fontSize: 11.sp,
           fontWeight: FontWeight.w700,
           color: text,
         ),
@@ -1847,7 +1896,7 @@ class _AllSalesScreenState extends State<AllSalesScreen> {
   Widget _buildPaymentBadge(String status) {
     final isPaid = status == 'Paid';
     return Container(
-      width: 64,
+      width: 80,
       padding: const EdgeInsets.symmetric(vertical: 3),
       alignment: Alignment.center,
       decoration: BoxDecoration(
@@ -1859,11 +1908,18 @@ class _AllSalesScreenState extends State<AllSalesScreen> {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
-          fontSize: 14.sp,
+          fontSize: 11.sp,
           fontWeight: FontWeight.w700,
           color: isPaid ? const Color(0xFF16A34A) : const Color(0xFFEF4444),
         ),
       ),
     );
   }
+}
+
+/// Small helper to carry icon palette for an order card
+class _OrderIconStyle {
+  final Color bg;
+  final Color icon;
+  const _OrderIconStyle({required this.bg, required this.icon});
 }

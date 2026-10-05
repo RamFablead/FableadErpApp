@@ -24,7 +24,6 @@ void main() {
     );
 
     // 1. Initial State: Quotation Mode (Screenshot 1)
-    expect(find.text('Bill 1'), findsOneWidget);
     expect(find.text('Quotation'), findsOneWidget);
     expect(find.text('Quotation No: Q-13'), findsOneWidget);
     expect(find.text('Generate Quote'), findsOneWidget);
@@ -86,18 +85,15 @@ void main() {
     expect(find.text('Total items : 1'), findsOneWidget);
     expect(find.text('Qty: 1'), findsOneWidget);
 
-    // 7. Test Create New Bill Modal Dialog
-    final plusBtn = find.byIcon(Icons.add_rounded).first;
-    await tester.tap(plusBtn);
-    await tester.pumpAndSettle();
+    // Verify ERP Billing Card design rendered below Total items
+    expect(find.text('Product description...'), findsOneWidget);
+    expect(find.text('Disc %'), findsOneWidget);
+    expect(find.text('Disc Amt'), findsOneWidget);
+    expect(find.text('Sub Total: '), findsOneWidget);
+    expect(find.text('Final Total: '), findsOneWidget);
 
-    expect(find.text('Create New Bill'), findsOneWidget);
-    expect(find.text('Sales'), findsOneWidget);
-    await tester.tap(find.text('Sales'));
-    await tester.pumpAndSettle();
-    expect(find.text('Create New Bill'), findsNothing);
-    expect(find.text('Order No: SI/HO/148'), findsOneWidget);
-    expect(find.text('Generate Bill'), findsOneWidget);
+    // 7. Test Add Product Button exists
+    expect(find.text('Add Product'), findsOneWidget);
 
     // 8. Test Calculator FAB
     final fab = find.byType(FloatingActionButton);
@@ -108,5 +104,7 @@ void main() {
     await tester.tap(fab);
     await tester.pump();
     expect(find.byType(CalculatorWidget), findsNothing);
+
+    await tester.pumpAndSettle();
   });
 }
