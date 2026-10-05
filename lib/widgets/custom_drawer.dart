@@ -137,6 +137,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
               children: [
                 // Single Item: Dashboard
                 if (_shouldShow('Dashboard'))
+
                   _buildSingleMenuItem(
                     title: 'Dashboard',
                     icon: Icons.space_dashboard_outlined,

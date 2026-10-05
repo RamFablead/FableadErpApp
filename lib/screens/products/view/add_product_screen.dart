@@ -54,6 +54,48 @@ class VariantRowItem {
   }
 }
 
+/// Model for a row in the Grocery Packing Details table.
+class GroceryPackingRowItem {
+  String packingType;
+  final TextEditingController packSizeController;
+  String unit;
+  final TextEditingController qtyController;
+  final TextEditingController mrpController;
+  final TextEditingController purchasePriceController;
+  final TextEditingController priceController;
+  final TextEditingController barcodeController;
+
+  GroceryPackingRowItem({
+    this.packingType = 'Packet',
+    String packSize = '',
+    this.unit = 'G',
+    String qty = '0',
+    String mrp = '0.00',
+    String purchasePrice = '0.00',
+    String price = '0.00',
+    String barcode = '',
+  })  : packSizeController = TextEditingController(text: packSize),
+        qtyController = TextEditingController(text: qty),
+        mrpController = TextEditingController(text: mrp),
+        purchasePriceController = TextEditingController(text: purchasePrice),
+        priceController = TextEditingController(text: price),
+        barcodeController = TextEditingController(text: barcode);
+
+  void dispose() {
+    packSizeController.dispose();
+    qtyController.dispose();
+    mrpController.dispose();
+    purchasePriceController.dispose();
+    priceController.dispose();
+    barcodeController.dispose();
+  }
+
+  void generateAutoBarcode() {
+    final rand = 10000000 + Random().nextInt(90000000);
+    barcodeController.text = rand.toString();
+  }
+}
+
 class AddProductScreen extends StatefulWidget {
   const AddProductScreen({super.key});
 
@@ -81,6 +123,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
   // Variant Rows
   final List<VariantRowItem> _variants = [];
+
+  // Grocery Packing Rows
+  final List<GroceryPackingRowItem> _groceryPackings = [];
 
   // Dropdown states
   String? _selectedCategory;
@@ -150,10 +195,30 @@ class _AddProductScreenState extends State<AddProductScreen> {
     'Out of Stock',
   ];
 
+  final List<String> _packingTypes = [
+    'Packet',
+    'Loose',
+    'Box',
+    'Bottle',
+    'Pouch',
+    'Can',
+    'Bag',
+    'Jar',
+  ];
+
+  final List<String> _groceryUnits = [
+    'G',
+    'Kg',
+    'Ml',
+    'L',
+    'Pcs',
+  ];
+
   @override
   void initState() {
     super.initState();
     _variants.add(VariantRowItem());
+    _groceryPackings.add(GroceryPackingRowItem());
   }
 
   @override
@@ -170,6 +235,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
     _descriptionController.dispose();
     for (final v in _variants) {
       v.dispose();
+    }
+    for (final g in _groceryPackings) {
+      g.dispose();
     }
     super.dispose();
   }
@@ -195,6 +263,32 @@ class _AddProductScreenState extends State<AddProductScreen> {
         _variants[0].purchasePriceController.text = '0.00';
         _variants[0].priceController.text = '0.00';
         _variants[0].barcodeController.clear();
+      });
+    }
+  }
+
+  void _addGroceryPackingRow() {
+    setState(() {
+      _groceryPackings.add(GroceryPackingRowItem());
+    });
+  }
+
+  void _removeGroceryPackingRow(int index) {
+    if (_groceryPackings.length > 1) {
+      setState(() {
+        _groceryPackings[index].dispose();
+        _groceryPackings.removeAt(index);
+      });
+    } else {
+      setState(() {
+        _groceryPackings[0].packingType = 'Packet';
+        _groceryPackings[0].packSizeController.clear();
+        _groceryPackings[0].unit = 'G';
+        _groceryPackings[0].qtyController.text = '0';
+        _groceryPackings[0].mrpController.text = '0.00';
+        _groceryPackings[0].purchasePriceController.text = '0.00';
+        _groceryPackings[0].priceController.text = '0.00';
+        _groceryPackings[0].barcodeController.clear();
       });
     }
   }
@@ -389,6 +483,12 @@ class _AddProductScreenState extends State<AddProductScreen> {
                   if (_selectedProductType == ProductType.variant) ...[
                     SizedBox(height: 2.h),
                     _buildProductVariantsSection(),
+                  ],
+
+                  // 4. Grocery Packing Details Card (Visible for Grocery Product)
+                  if (_selectedProductType == ProductType.grocery) ...[
+                    SizedBox(height: 2.h),
+                    _buildGroceryPackingSection(),
                   ],
 
                   SizedBox(height: 3.h),
@@ -1479,8 +1579,11 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w700),
                   ),
                 ),
-                const DataColumn(
-                  label: Text(''),
+                DataColumn(
+                  label: Text(
+                    'Action',
+                    style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w700),
+                  ),
                 ),
               ],
               rows: _variants.asMap().entries.map((entry) {
@@ -1490,72 +1593,446 @@ class _AddProductScreenState extends State<AddProductScreen> {
                   cells: [
                     DataCell(
                       SizedBox(
-                        width: 80,
-                        child: _buildVariantCellField(v.sizeController, 'e.g. XL'),
+                        width: 85,
+                        child: _buildVariantCellField(v.sizeController, 'e.g. M'),
                       ),
                     ),
                     DataCell(
                       SizedBox(
-                        width: 80,
+                        width: 85,
                         child: _buildVariantCellField(v.colorController, 'e.g. Red'),
                       ),
                     ),
                     DataCell(
                       SizedBox(
-                        width: 60,
+                        width: 65,
                         child: _buildVariantCellField(v.qtyController, '0', isNumber: true),
                       ),
                     ),
                     DataCell(
                       SizedBox(
-                        width: 80,
-                        child: _buildVariantCellField(v.mrpController, '0.00', isNumber: true),
+                        width: 95,
+                        child: _buildMrpVariantCellField(v.mrpController),
                       ),
                     ),
                     DataCell(
                       SizedBox(
-                        width: 80,
+                        width: 90,
                         child: _buildVariantCellField(v.purchasePriceController, '0.00', isNumber: true),
                       ),
                     ),
                     DataCell(
                       SizedBox(
-                        width: 80,
+                        width: 90,
                         child: _buildVariantCellField(v.priceController, '0.00', isNumber: true),
                       ),
                     ),
                     DataCell(
                       SizedBox(
-                        width: 140,
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: _buildVariantCellField(v.barcodeController, 'Barcode'),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.refresh_rounded, size: 16, color: Color(0xFFFF6B2C)),
-                              onPressed: () {
-                                setState(() {
-                                  v.generateAutoBarcode();
-                                });
-                              },
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                            ),
-                          ],
-                        ),
+                        width: 120,
+                        child: _buildVariantCellField(v.barcodeController, 'Auto-ger...'),
                       ),
                     ),
                     DataCell(
-                      IconButton(
-                        icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFFDC2626), size: 18),
-                        onPressed: () => _removeVariantRow(idx),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Camera Button (Orange)
+                          InkWell(
+                            onTap: () {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Upload image for variant ${idx + 1}',
+                                    style: TextStyle(fontSize: 14.sp),
+                                  ),
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            },
+                            borderRadius: BorderRadius.circular(6),
+                            child: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFF7ED),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: const Color(0xFFFF6B2C)),
+                              ),
+                              child: const Icon(
+                                Icons.camera_alt_outlined,
+                                color: Color(0xFFFF6B2C),
+                                size: 16,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          // Trash Delete Button (Red)
+                          InkWell(
+                            onTap: () => _removeVariantRow(idx),
+                            borderRadius: BorderRadius.circular(6),
+                            child: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFEF2F2),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: const Color(0xFFEF4444)),
+                              ),
+                              child: const Icon(
+                                Icons.delete_outline_rounded,
+                                color: Color(0xFFEF4444),
+                                size: 16,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 );
               }).toList(),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- Grocery Packing Details Section (Visible for Grocery Product) ---
+  Widget _buildGroceryPackingSection() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Grocery Packing Details',
+                style: TextStyle(
+                  fontSize: 15.sp,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF0F172A),
+                ),
+              ),
+              ElevatedButton.icon(
+                onPressed: _addGroceryPackingRow,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFF6B2C),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+                icon: const Icon(Icons.add_rounded, size: 16, color: Colors.white),
+                label: Text(
+                  'Add More',
+                  style: TextStyle(
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: DataTable(
+              headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+              columnSpacing: 14,
+              columns: [
+                DataColumn(
+                  label: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('Packing Type', style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w700)),
+                      Text(' *', style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w800, color: const Color(0xFFEF4444))),
+                    ],
+                  ),
+                ),
+                DataColumn(
+                  label: Text('Pack Size', style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w700)),
+                ),
+                DataColumn(
+                  label: Text('Unit', style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w700)),
+                ),
+                DataColumn(
+                  label: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('Qty', style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w700)),
+                      Text(' *', style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w800, color: const Color(0xFFEF4444))),
+                    ],
+                  ),
+                ),
+                DataColumn(
+                  label: Text('MRP', style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w700)),
+                ),
+                DataColumn(
+                  label: Text('Purchase Price', style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w700)),
+                ),
+                DataColumn(
+                  label: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('Price', style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w700)),
+                      Text(' *', style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w800, color: const Color(0xFFEF4444))),
+                    ],
+                  ),
+                ),
+                DataColumn(
+                  label: Text('Barcode', style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w700)),
+                ),
+                DataColumn(
+                  label: Text('Action', style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w700)),
+                ),
+              ],
+              rows: _groceryPackings.asMap().entries.map((entry) {
+                final idx = entry.key;
+                final g = entry.value;
+                return DataRow(
+                  cells: [
+                    // 1. Packing Type Dropdown
+                    DataCell(
+                      SizedBox(
+                        width: 105,
+                        child: _buildSmallDropdownField(
+                          value: g.packingType,
+                          items: _packingTypes,
+                          onChanged: (val) {
+                            if (val != null) {
+                              setState(() => g.packingType = val);
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+                    // 2. Pack Size
+                    DataCell(
+                      SizedBox(
+                        width: 90,
+                        child: _buildVariantCellField(g.packSizeController, 'e.g. 100'),
+                      ),
+                    ),
+                    // 3. Unit Dropdown
+                    DataCell(
+                      SizedBox(
+                        width: 75,
+                        child: _buildSmallDropdownField(
+                          value: g.unit,
+                          items: _groceryUnits,
+                          onChanged: (val) {
+                            if (val != null) {
+                              setState(() => g.unit = val);
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+                    // 4. Qty *
+                    DataCell(
+                      SizedBox(
+                        width: 65,
+                        child: _buildVariantCellField(g.qtyController, '0', isNumber: true),
+                      ),
+                    ),
+                    // 5. MRP
+                    DataCell(
+                      SizedBox(
+                        width: 95,
+                        child: _buildMrpVariantCellField(g.mrpController),
+                      ),
+                    ),
+                    // 6. Purchase Price
+                    DataCell(
+                      SizedBox(
+                        width: 90,
+                        child: _buildVariantCellField(g.purchasePriceController, '0.00', isNumber: true),
+                      ),
+                    ),
+                    // 7. Price *
+                    DataCell(
+                      SizedBox(
+                        width: 90,
+                        child: _buildVariantCellField(g.priceController, '0.00', isNumber: true),
+                      ),
+                    ),
+                    // 8. Barcode
+                    DataCell(
+                      SizedBox(
+                        width: 120,
+                        child: _buildVariantCellField(g.barcodeController, 'Auto-ger...'),
+                      ),
+                    ),
+                    // 9. Action
+                    DataCell(
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Camera Button (Orange)
+                          InkWell(
+                            onTap: () {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Upload image for packing item ${idx + 1}',
+                                    style: TextStyle(fontSize: 14.sp),
+                                  ),
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            },
+                            borderRadius: BorderRadius.circular(6),
+                            child: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFF7ED),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: const Color(0xFFFF6B2C)),
+                              ),
+                              child: const Icon(
+                                Icons.camera_alt_outlined,
+                                color: Color(0xFFFF6B2C),
+                                size: 16,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          // Delete Button (Red)
+                          InkWell(
+                            onTap: () => _removeGroceryPackingRow(idx),
+                            borderRadius: BorderRadius.circular(6),
+                            child: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFEF2F2),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: const Color(0xFFEF4444)),
+                              ),
+                              child: const Icon(
+                                Icons.delete_outline_rounded,
+                                color: Color(0xFFEF4444),
+                                size: 16,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSmallDropdownField({
+    required String? value,
+    required List<String> items,
+    required ValueChanged<String?> onChanged,
+  }) {
+    return Container(
+      height: 34,
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: const Color(0xFFCBD5E1)),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: items.contains(value) ? value : items.first,
+          isExpanded: true,
+          icon: const Icon(
+            Icons.keyboard_arrow_down_rounded,
+            color: Color(0xFF64748B),
+            size: 16,
+          ),
+          style: TextStyle(
+            fontSize: 13.sp,
+            color: const Color(0xFF0F172A),
+          ),
+          items: items.map((String itm) {
+            return DropdownMenuItem<String>(
+              value: itm,
+              child: Text(
+                itm,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 13.sp,
+                  color: const Color(0xFF0F172A),
+                ),
+              ),
+            );
+          }).toList(),
+          onChanged: onChanged,
+        ),
+      ),
+    );
+  }
+
+  // --- Variant / Grocery Cell Field with Up/Down Stepper Arrows for MRP ---
+  Widget _buildMrpVariantCellField(TextEditingController controller) {
+    return Container(
+      height: 34,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: const Color(0xFFCBD5E1)),
+        color: Colors.white,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              style: TextStyle(fontSize: 13.sp),
+              decoration: InputDecoration(
+                hintText: '0.00',
+                hintStyle: TextStyle(fontSize: 13.sp, color: const Color(0xFF94A3B8)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                isDense: true,
+                border: InputBorder.none,
+              ),
+            ),
+          ),
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              InkWell(
+                onTap: () {
+                  final val = double.tryParse(controller.text) ?? 0.0;
+                  controller.text = (val + 1.0).toStringAsFixed(2);
+                },
+                child: const Icon(Icons.arrow_drop_up_rounded, size: 14, color: Color(0xFF64748B)),
+              ),
+              InkWell(
+                onTap: () {
+                  final val = double.tryParse(controller.text) ?? 0.0;
+                  if (val >= 1.0) {
+                    controller.text = (val - 1.0).toStringAsFixed(2);
+                  }
+                },
+                child: const Icon(Icons.arrow_drop_down_rounded, size: 14, color: Color(0xFF64748B)),
+              ),
+            ],
           ),
         ],
       ),
@@ -1599,7 +2076,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 child: Center(
                   child: Text(
-                    'Save Product',
+                    'Submit',
                     style: TextStyle(
                       fontSize: 15.sp,
                       fontWeight: FontWeight.w700,
