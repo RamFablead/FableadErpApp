@@ -87,6 +87,22 @@ class AllSalesScreen extends StatefulWidget {
   State<AllSalesScreen> createState() => _AllSalesScreenState();
 }
 
+/// Internal state container for each GST Tab (Without GST Bills vs With GST Bills)
+class _GstTabState {
+  final List<OrderItemModel> orders = [];
+  bool isLoading = false;
+  bool isLoadingMore = false;
+  bool hasError = false;
+  String errorMessage = '';
+  int currentPage = 1;
+  int lastPage = 1;
+  int total = 0;
+  bool isLoaded = false;
+  double totalAmount = 0;
+  double totalPendingAmount = 0;
+  double totalPaidAmount = 0;
+}
+
 class _AllSalesScreenState extends State<AllSalesScreen> {
   // Tab Filter: 'Without GST Bills' | 'With GST Bills'
   String _selectedGstTab = 'Without GST Bills';
@@ -107,18 +123,27 @@ class _AllSalesScreenState extends State<AllSalesScreen> {
   // Floating Calculator overlay
   bool _isCalculatorOpen = false;
 
-  // --- Live API State ---
+  // --- Live API State per GST Tab ---
   final OrderService _orderService = OrderService();
-  final List<OrderItemModel> _allOrders = [];
-  bool _isLoading = false;
-  bool _isLoadingMore = false;
-  bool _hasError = false;
-  String _errorMessage = '';
-  int _currentPage = 1;
-  int _lastPage = 1;
-  double _totalAmount = 0;
-  double _totalPendingAmount = 0;
-  double _totalPaidAmount = 0;
+  final _GstTabState _withoutGstState = _GstTabState();
+  final _GstTabState _withGstState = _GstTabState();
+
+  _GstTabState get _currentState =>
+      _selectedGstTab == 'With GST Bills' ? _withGstState : _withoutGstState;
+
+  bool get _isLoading => _currentState.isLoading;
+  bool get _isLoadingMore => _currentState.isLoadingMore;
+  bool get _hasError => _currentState.hasError;
+  String get _errorMessage => _currentState.errorMessage;
+  int get _currentPage => _currentState.currentPage;
+  int get _lastPage => _currentState.lastPage;
+  double get _totalAmount => _currentState.totalAmount;
+  double get _totalPendingAmount => _currentState.totalPendingAmount;
+  double get _totalPaidAmount => _currentState.totalPaidAmount;
+
+  String _getGstOptionForTab(String tab) {
+    return tab == 'With GST Bills' ? 'with_gst' : 'without_gst';
+  }
 
   // Scroll controller for pagination
   final ScrollController _scrollController = ScrollController();
@@ -181,7 +206,10 @@ class _AllSalesScreenState extends State<AllSalesScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchOrders(page: 1, isRefresh: true);
+    // Load Without GST Bills (initial active tab)
+    _fetchOrders(tab: 'Without GST Bills', page: 1, isRefresh: true);
+    // Pre-fetch With GST Bills in background so tab switching is instantaneous
+    _fetchOrders(tab: 'With GST Bills', page: 1, isRefresh: true);
     _scrollController.addListener(_onScroll);
   }
 
@@ -193,74 +221,90 @@ class _AllSalesScreenState extends State<AllSalesScreen> {
   }
 
   void _onScroll() {
+    if (!_scrollController.hasClients) return;
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 200) {
       _loadMoreOrders();
     }
   }
 
-  Future<void> _fetchOrders({int page = 1, bool isRefresh = false}) async {
-    if (_isLoading || _isLoadingMore) return;
+  Future<void> _fetchOrders({
+    String? tab,
+    int page = 1,
+    bool isRefresh = false,
+  }) async {
+    final targetTab = tab ?? _selectedGstTab;
+    final state = targetTab == 'With GST Bills' ? _withGstState : _withoutGstState;
+    final gstOption = _getGstOptionForTab(targetTab);
+
+    if (state.isLoading || state.isLoadingMore) return;
+
     setState(() {
       if (isRefresh) {
-        _isLoading = true;
-        _hasError = false;
-        _allOrders.clear();
-        _currentPage = 1;
-        _lastPage = 1;
+        state.isLoading = true;
+        state.hasError = false;
+        state.orders.clear();
+        state.currentPage = 1;
+        state.lastPage = 1;
       } else {
-        _isLoadingMore = true;
+        state.isLoadingMore = true;
       }
     });
+
     try {
-      final result = await _orderService.getOrders(page: page);
+      final result = await _orderService.getOrders(
+        page: page,
+        perPage: 25,
+        gstOption: gstOption,
+      );
+
+      if (!mounted) return;
+
       setState(() {
-        _allOrders.addAll(result.data);
-        _currentPage = result.pagination?.currentPage ?? page;
-        _lastPage = result.pagination?.lastPage ?? 1;
-        _totalAmount = result.totalAmount;
-        _totalPendingAmount = result.totalPendingAmount;
-        _totalPaidAmount = result.totalPaidAmount;
-        _isLoading = false;
-        _isLoadingMore = false;
-        _hasError = false;
+        state.orders.addAll(result.data);
+        state.currentPage = result.pagination?.currentPage ?? page;
+        state.lastPage = result.pagination?.lastPage ?? 1;
+        state.total = result.pagination?.total ?? state.orders.length;
+        state.totalAmount = result.totalAmount;
+        state.totalPendingAmount = result.totalPendingAmount;
+        state.totalPaidAmount = result.totalPaidAmount;
+        state.isLoaded = true;
+        state.isLoading = false;
+        state.isLoadingMore = false;
+        state.hasError = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
-        _isLoading = false;
-        _isLoadingMore = false;
-        _hasError = isRefresh;
-        _errorMessage = e.toString();
+        state.isLoading = false;
+        state.isLoadingMore = false;
+        state.hasError = isRefresh;
+        state.errorMessage = e.toString();
       });
     }
   }
 
   Future<void> _loadMoreOrders() async {
-    if (_isLoadingMore || _currentPage >= _lastPage) return;
-    await _fetchOrders(page: _currentPage + 1);
+    final state = _currentState;
+    if (state.isLoading || state.isLoadingMore || state.currentPage >= state.lastPage) {
+      return;
+    }
+    await _fetchOrders(tab: _selectedGstTab, page: state.currentPage + 1);
   }
 
-  // Filtered orders from live API data
+  // Filtered orders from live API data for active tab
   List<OrderItemModel> get _filteredOrders {
     final query = _searchController.text.trim().toLowerCase();
-    final isGstSelected = _selectedGstTab == 'With GST Bills';
+    final list = _currentState.orders;
 
-    var list = _allOrders.where((order) {
-      // 1. GST Filter
-      if (order.isWithGst != isGstSelected) return false;
+    if (query.isEmpty) return list;
 
-      // 2. Search Query (orderNumber, customerName, staffName)
-      if (query.isNotEmpty) {
-        final matchesNo = order.orderNumber.toLowerCase().contains(query);
-        final matchesCust = order.customerName.toLowerCase().contains(query);
-        final matchesStaff = order.effectiveStaffName.toLowerCase().contains(query);
-        if (!matchesNo && !matchesCust && !matchesStaff) return false;
-      }
-
-      return true;
+    return list.where((order) {
+      final matchesNo = order.orderNumber.toLowerCase().contains(query);
+      final matchesCust = order.customerName.toLowerCase().contains(query);
+      final matchesStaff = order.effectiveStaffName.toLowerCase().contains(query);
+      return matchesNo || matchesCust || matchesStaff;
     }).toList();
-
-    return list;
   }
 
   Future<void> _pickDate() async {
@@ -678,16 +722,7 @@ class _AllSalesScreenState extends State<AllSalesScreen> {
                 color: const Color(0xFFEF4444),
                 onTap: () {
                   Navigator.pop(ctx);
-                  setState(() {
-                    _allOrders.removeWhere((o) => o.id == order.id);
-                  });
-                  Get.snackbar(
-                    'Deleted',
-                    'Bill ${order.orderNumber} removed successfully',
-                    snackPosition: SnackPosition.BOTTOM,
-                    backgroundColor: const Color(0xFFEF4444),
-                    colorText: Colors.white,
-                  );
+                  _confirmDeleteOrder(order);
                 },
               ),
             ],
@@ -695,6 +730,133 @@ class _AllSalesScreenState extends State<AllSalesScreen> {
         );
       },
     );
+  }
+
+  void _confirmDeleteOrder(OrderItemModel order) {
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        title: Row(
+          children: [
+            const Icon(Icons.delete_outline_rounded,
+                color: Color(0xFFEF4444), size: 24),
+            const SizedBox(width: 8),
+            Text(
+              'Delete Order',
+              style: TextStyle(
+                fontSize: 16.sp,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFF0F172A),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'Are you sure you want to delete order #${order.orderNumber}?',
+          style: TextStyle(
+            fontSize: 14.sp,
+            color: const Color(0xFF475569),
+          ),
+        ),
+        actionsPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: Text(
+              'Cancel',
+              style: TextStyle(
+                color: const Color(0xFF64748B),
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              elevation: 0,
+            ),
+            onPressed: () {
+              Navigator.pop(dialogCtx);
+              _handleDeleteOrder(order);
+            },
+            child: Text(
+              'Delete',
+              style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleDeleteOrder(OrderItemModel order) async {
+    Get.showSnackbar(
+      const GetSnackBar(
+        message: 'Deleting order...',
+        duration: Duration(seconds: 1),
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Color(0xFF0F172A),
+        showProgressIndicator: true,
+      ),
+    );
+
+    try {
+      final response = await _orderService.deleteOrder(order.id);
+
+      if (response.status) {
+        setState(() {
+          _withoutGstState.orders.removeWhere((o) => o.id == order.id);
+          _withGstState.orders.removeWhere((o) => o.id == order.id);
+        });
+
+        Get.closeCurrentSnackbar();
+        Get.snackbar(
+          'Deleted',
+          response.message.isNotEmpty
+              ? response.message
+              : 'Order deleted successfully.',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: const Color(0xFF22C55E),
+          colorText: Colors.white,
+          icon: const Icon(Icons.check_circle_outline, color: Colors.white),
+          duration: const Duration(seconds: 3),
+        );
+
+        // Refresh orders list to keep counts and totals updated
+        _fetchOrders(page: 1, isRefresh: true);
+      } else {
+        Get.closeCurrentSnackbar();
+        Get.snackbar(
+          'Failed',
+          response.message.isNotEmpty
+              ? response.message
+              : 'Failed to delete order',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: const Color(0xFFEF4444),
+          colorText: Colors.white,
+          icon: const Icon(Icons.error_outline, color: Colors.white),
+          duration: const Duration(seconds: 3),
+        );
+      }
+    } catch (e) {
+      Get.closeCurrentSnackbar();
+      Get.snackbar(
+        'Error',
+        e.toString(),
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: const Color(0xFFEF4444),
+        colorText: Colors.white,
+        icon: const Icon(Icons.error_outline, color: Colors.white),
+        duration: const Duration(seconds: 4),
+      );
+    }
   }
 
   Widget _buildActionSheetOption({
@@ -752,7 +914,7 @@ class _AllSalesScreenState extends State<AllSalesScreen> {
         children: [
           RefreshIndicator(
             color: const Color(0xFFFF6B2C),
-            onRefresh: () => _fetchOrders(page: 1, isRefresh: true),
+            onRefresh: () => _fetchOrders(tab: _selectedGstTab, page: 1, isRefresh: true),
             child: SingleChildScrollView(
               controller: _scrollController,
               physics: const AlwaysScrollableScrollPhysics(),
@@ -959,6 +1121,22 @@ class _AllSalesScreenState extends State<AllSalesScreen> {
     );
   }
 
+  void _switchGstTab(String tab) {
+    if (_selectedGstTab == tab) return;
+    setState(() {
+      _selectedGstTab = tab;
+    });
+
+    if (_scrollController.hasClients) {
+      _scrollController.jumpTo(0);
+    }
+
+    final state = _currentState;
+    if (!state.isLoaded && !state.isLoading) {
+      _fetchOrders(tab: tab, page: 1, isRefresh: true);
+    }
+  }
+
   // --- 2. Tab Switcher: "Without GST Bills" | "With GST Bills" ---
   Widget _buildGstTabSwitcher() {
     return Container(
@@ -974,7 +1152,7 @@ class _AllSalesScreenState extends State<AllSalesScreen> {
             child: _buildGstTabPill(
               title: 'Without GST Bills',
               isSelected: _selectedGstTab == 'Without GST Bills',
-              onTap: () => setState(() => _selectedGstTab = 'Without GST Bills'),
+              onTap: () => _switchGstTab('Without GST Bills'),
             ),
           ),
           const SizedBox(width: 4),
@@ -982,7 +1160,7 @@ class _AllSalesScreenState extends State<AllSalesScreen> {
             child: _buildGstTabPill(
               title: 'With GST Bills',
               isSelected: _selectedGstTab == 'With GST Bills',
-              onTap: () => setState(() => _selectedGstTab = 'With GST Bills'),
+              onTap: () => _switchGstTab('With GST Bills'),
             ),
           ),
         ],
@@ -1485,7 +1663,7 @@ class _AllSalesScreenState extends State<AllSalesScreen> {
             ),
             const SizedBox(height: 16),
             ElevatedButton.icon(
-              onPressed: () => _fetchOrders(page: 1, isRefresh: true),
+              onPressed: () => _fetchOrders(tab: _selectedGstTab, page: 1, isRefresh: true),
               icon: const Icon(Icons.refresh_rounded, size: 16),
               label: const Text('Retry'),
               style: ElevatedButton.styleFrom(

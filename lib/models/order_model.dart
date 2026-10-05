@@ -367,3 +367,188 @@ class OrderPaginationModel {
     );
   }
 }
+
+/// Request model for POST /api/order_sale
+class CreateOrderSaleRequestModel {
+  final String customerId;
+  final String customerPhone;
+  final String? gstOption; // 'without_gst' or 'with_gst'
+  final String orderDate;
+  final String quotationStatus; // 'sale'
+  final String paymentMethod; // 'cash', 'card', 'upi', etc.
+  final String paidType; // 'cash_fully', etc.
+  final double subtotal;
+  final double amount;
+  final double paymentAmount;
+  final double pendingAmount;
+  final double cashAmount;
+  final double total;
+  final double discount;
+  final String? remarks;
+  final List<CreateOrderItemRequestModel> items;
+
+  CreateOrderSaleRequestModel({
+    required this.customerId,
+    required this.customerPhone,
+    this.gstOption = 'without_gst',
+    required this.orderDate,
+    this.quotationStatus = 'sale',
+    this.paymentMethod = 'cash',
+    this.paidType = 'cash_fully',
+    required this.subtotal,
+    required this.amount,
+    required this.paymentAmount,
+    this.pendingAmount = 0.0,
+    required this.cashAmount,
+    required this.total,
+    this.discount = 0.0,
+    this.remarks,
+    required this.items,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'customer_id': customerId,
+      'customer_phone': customerPhone,
+      if (gstOption != null && gstOption!.isNotEmpty) 'gst_option': gstOption,
+      'order_date': orderDate,
+      'quotation_status': quotationStatus,
+      'payment_method': paymentMethod,
+      'paid_type': paidType,
+      'subtotal': subtotal,
+      'amount': amount,
+      'payment_amount': paymentAmount,
+      'pending_amount': pendingAmount,
+      'cash_amount': cashAmount,
+      'total': total,
+      'discount': discount,
+      if (remarks != null && remarks!.isNotEmpty) 'remarks': remarks,
+      'items': items.map((item) => item.toJson()).toList(),
+    };
+  }
+}
+
+/// Order item in CreateOrderSaleRequestModel
+class CreateOrderItemRequestModel {
+  final int productId;
+  final String productName;
+  final int quantity;
+  final double price;
+  final double total;
+
+  CreateOrderItemRequestModel({
+    required this.productId,
+    required this.productName,
+    required this.quantity,
+    required this.price,
+    required this.total,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'product_id': productId,
+      'product_name': productName,
+      'quantity': quantity,
+      'price': price,
+      'total': total,
+    };
+  }
+}
+
+/// Response model for POST /api/order_sale
+class CreateOrderSaleResponseModel {
+  final bool status;
+  final String message;
+  final int? orderId;
+  final bool mailSent;
+  final SalesInvoiceModel? salesInvoice;
+
+  CreateOrderSaleResponseModel({
+    required this.status,
+    required this.message,
+    this.orderId,
+    this.mailSent = false,
+    this.salesInvoice,
+  });
+
+  factory CreateOrderSaleResponseModel.fromJson(Map<String, dynamic> json) {
+    return CreateOrderSaleResponseModel(
+      status: json['status'] == true,
+      message: json['message']?.toString() ?? '',
+      orderId: json['order_id'] is int
+          ? json['order_id']
+          : int.tryParse(json['order_id']?.toString() ?? ''),
+      mailSent: json['mail_sent'] == true,
+      salesInvoice: json['sales_invoice'] is Map<String, dynamic>
+          ? SalesInvoiceModel.fromJson(json['sales_invoice'])
+          : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'status': status,
+      'message': message,
+      'order_id': orderId,
+      'mail_sent': mailSent,
+      'sales_invoice': salesInvoice?.toJson(),
+    };
+  }
+}
+
+/// Sales Invoice details returned from /api/order_sale
+class SalesInvoiceModel {
+  final bool status;
+  final String? fileUrl;
+  final String? fileName;
+  final String? relativePath;
+
+  SalesInvoiceModel({
+    required this.status,
+    this.fileUrl,
+    this.fileName,
+    this.relativePath,
+  });
+
+  factory SalesInvoiceModel.fromJson(Map<String, dynamic> json) {
+    return SalesInvoiceModel(
+      status: json['status'] == true,
+      fileUrl: json['file_url']?.toString(),
+      fileName: json['file_name']?.toString(),
+      relativePath: json['relative_path']?.toString(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'status': status,
+      'file_url': fileUrl,
+      'file_name': fileName,
+      'relative_path': relativePath,
+    };
+  }
+}
+
+class DeleteOrderResponseModel {
+  final bool status;
+  final String message;
+
+  DeleteOrderResponseModel({
+    required this.status,
+    required this.message,
+  });
+
+  factory DeleteOrderResponseModel.fromJson(Map<String, dynamic> json) {
+    return DeleteOrderResponseModel(
+      status: json['status'] == true,
+      message: json['message']?.toString() ?? '',
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'status': status,
+      'message': message,
+    };
+  }
+}
