@@ -3,7 +3,11 @@ import 'package:get/get.dart';
 import 'package:sizer/sizer.dart';
 import '../../../core/widgets/calculator_widget.dart';
 import '../../../widgets/custom_app_bar.dart';
+import '../../../widgets/custom_bottom_bar.dart';
 import '../../../widgets/custom_drawer.dart';
+import '../../home_screen.dart';
+import '../../products/view/product_screen.dart';
+import '../../profile_screen.dart';
 import 'sales_screen.dart';
 
 /// Model representing a single Sales & Bill row item
@@ -842,6 +846,26 @@ class _AllSalesScreenState extends State<AllSalesScreen> {
         isDarkMode: false,
       ),
       drawer: const CustomDrawer(isDarkMode: false, activeItem: 'Sales'),
+      bottomNavigationBar: CustomBottomBar(
+        selectedIndex: 2, // Sale tab
+        isDarkMode: false,
+        onItemTapped: (index) {
+          switch (index) {
+            case 0:
+              Get.offAll(() => const HomeScreen());
+              break;
+            case 1:
+              Get.to(() => const ProductScreen());
+              break;
+            case 2:
+              // Already on Sale
+              break;
+            case 3:
+              Get.to(() => const ProfileScreen());
+              break;
+          }
+        },
+      ),
       body: Stack(
         children: [
           SingleChildScrollView(

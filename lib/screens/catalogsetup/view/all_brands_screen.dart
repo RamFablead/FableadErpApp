@@ -4,99 +4,108 @@ import 'package:sizer/sizer.dart';
 import '../../../core/widgets/calculator_widget.dart';
 import '../../../widgets/custom_app_bar.dart';
 import '../../../widgets/custom_drawer.dart';
-import 'add_product_category_screen.dart';
+import 'add_brands_screen.dart';
 
-/// Data model representing a product category item.
-class CategoryItem {
+/// Data model representing a brand in the catalog setup.
+class BrandItem {
   final String id;
   final String name;
-  final String? imageUrl;
+  final String email;
+  final String phone;
+  final String? logoUrl;
   final IconData placeholderIcon;
   final String createdAt;
 
-  const CategoryItem({
+  const BrandItem({
     required this.id,
     required this.name,
-    this.imageUrl,
-    this.placeholderIcon = Icons.category_outlined,
+    required this.email,
+    required this.phone,
+    this.logoUrl,
+    this.placeholderIcon = Icons.branding_watermark_rounded,
     required this.createdAt,
   });
 
-  CategoryItem copyWith({
+  BrandItem copyWith({
     String? name,
-    String? imageUrl,
+    String? email,
+    String? phone,
+    String? logoUrl,
     String? createdAt,
   }) {
-    return CategoryItem(
+    return BrandItem(
       id: id,
       name: name ?? this.name,
-      imageUrl: imageUrl ?? this.imageUrl,
+      email: email ?? this.email,
+      phone: phone ?? this.phone,
+      logoUrl: logoUrl ?? this.logoUrl,
       placeholderIcon: placeholderIcon,
       createdAt: createdAt ?? this.createdAt,
     );
   }
 }
 
-/// Screen displaying the list of all product categories in the catalog setup.
-class ProductCategoryScreen extends StatefulWidget {
-  const ProductCategoryScreen({super.key});
+/// Screen displaying the list of all brands in the catalog setup.
+class AllBrandsScreen extends StatefulWidget {
+  const AllBrandsScreen({super.key});
 
   @override
-  State<ProductCategoryScreen> createState() => _ProductCategoryScreenState();
+  State<AllBrandsScreen> createState() => _AllBrandsScreenState();
 }
 
-class _ProductCategoryScreenState extends State<ProductCategoryScreen> {
+class _AllBrandsScreenState extends State<AllBrandsScreen> {
   final TextEditingController _searchController = TextEditingController();
   bool _isCalculatorOpen = false;
 
-  final List<CategoryItem> _categories = [
-    const CategoryItem(
+  final List<BrandItem> _brands = [
+    const BrandItem(
       id: '1',
-      name: 'Male1',
-      placeholderIcon: Icons.person_outline_rounded,
-      createdAt: '30/09/2026',
+      name: 'Apple',
+      email: 'contact@apple.com',
+      phone: '+1 800-692-7753',
+      createdAt: '01/10/2026',
     ),
-    const CategoryItem(
+    const BrandItem(
       id: '2',
-      name: 'Test Category 15',
-      placeholderIcon: Icons.auto_awesome_rounded,
-      createdAt: '30/09/2026',
+      name: 'Samsung',
+      email: 'support@samsung.com',
+      phone: '+1 800-726-7864',
+      createdAt: '29/09/2026',
     ),
-    const CategoryItem(
+    const BrandItem(
       id: '3',
-      name: 'Test Category',
-      placeholderIcon: Icons.dashboard_outlined,
-      createdAt: '30/09/2026',
+      name: 'Nike Inc.',
+      email: 'sales@nike.com',
+      phone: '+1 800-806-6453',
+      createdAt: '28/09/2026',
     ),
-    const CategoryItem(
+    const BrandItem(
       id: '4',
-      name: 'Drinks',
-      placeholderIcon: Icons.local_drink_outlined,
-      createdAt: '28/09/2026',
+      name: 'Sony Corporation',
+      email: 'info@sony.com',
+      phone: '+1 800-222-7669',
+      createdAt: '25/09/2026',
     ),
-    const CategoryItem(
+    const BrandItem(
       id: '5',
-      name: 'Clean House',
-      placeholderIcon: Icons.cleaning_services_outlined,
-      createdAt: '28/09/2026',
+      name: 'Dell Technologies',
+      email: 'support@dell.com',
+      phone: '+1 800-624-9897',
+      createdAt: '20/09/2026',
     ),
-    const CategoryItem(
+    const BrandItem(
       id: '6',
-      name: 'Female',
-      placeholderIcon: Icons.face_3_outlined,
+      name: 'LG Electronics',
+      email: 'service@lg.com',
+      phone: '+1 800-243-0000',
       createdAt: '15/09/2026',
     ),
-    const CategoryItem(
+    const BrandItem(
       id: '7',
-      name: 'Food',
-      placeholderIcon: Icons.restaurant_outlined,
-      createdAt: '27/08/2026',
-    ),
-    const CategoryItem(
-      id: '8',
-      name: 'Furniture',
-      placeholderIcon: Icons.chair_outlined,
-      createdAt: '03/07/2026',
+      name: 'HP Inc.',
+      email: 'contact@hp.com',
+      phone: '+1 800-474-6836',
+      createdAt: '10/09/2026',
     ),
   ];
 
@@ -106,22 +115,24 @@ class _ProductCategoryScreenState extends State<ProductCategoryScreen> {
     super.dispose();
   }
 
-  List<CategoryItem> get _filteredCategories {
+  List<BrandItem> get _filteredBrands {
     final query = _searchController.text.trim().toLowerCase();
-    if (query.isEmpty) return _categories;
-    return _categories.where((cat) {
-      return cat.name.toLowerCase().contains(query);
+    if (query.isEmpty) return _brands;
+    return _brands.where((b) {
+      return b.name.toLowerCase().contains(query) ||
+          b.email.toLowerCase().contains(query) ||
+          b.phone.toLowerCase().contains(query);
     }).toList();
   }
 
-  void _handleDelete(CategoryItem item) {
+  void _handleDelete(BrandItem item) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         title: Text(
-          'Delete Category',
+          'Delete Brand',
           style: TextStyle(
             fontSize: 16.sp,
             fontWeight: FontWeight.w700,
@@ -129,7 +140,7 @@ class _ProductCategoryScreenState extends State<ProductCategoryScreen> {
           ),
         ),
         content: Text(
-          'Are you sure you want to delete category "${item.name}"?',
+          'Are you sure you want to delete brand "${item.name}"?',
           style: TextStyle(
             fontSize: 14.sp,
             color: const Color(0xFF475569),
@@ -151,13 +162,13 @@ class _ProductCategoryScreenState extends State<ProductCategoryScreen> {
             onPressed: () {
               Navigator.pop(ctx);
               setState(() {
-                _categories.removeWhere((c) => c.id == item.id);
+                _brands.removeWhere((b) => b.id == item.id);
               });
               ScaffoldMessenger.of(context).hideCurrentSnackBar();
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(
-                    'Category "${item.name}" deleted successfully.',
+                    'Brand "${item.name}" deleted successfully.',
                     style: TextStyle(fontSize: 14.sp, color: Colors.white),
                   ),
                   backgroundColor: const Color(0xFFDC2626),
@@ -186,58 +197,63 @@ class _ProductCategoryScreenState extends State<ProductCategoryScreen> {
     );
   }
 
-  void _handleEdit(CategoryItem item) {
-    final editController = TextEditingController(text: item.name);
+  void _handleEdit(BrandItem item) {
+    final nameCtrl = TextEditingController(text: item.name);
+    final emailCtrl = TextEditingController(text: item.email);
+    final phoneCtrl = TextEditingController(text: item.phone);
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         title: Text(
-          'Edit Category',
+          'Edit Brand',
           style: TextStyle(
             fontSize: 16.sp,
             fontWeight: FontWeight.w700,
             color: const Color(0xFF0F172A),
           ),
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Category Name',
-              style: TextStyle(
-                fontSize: 14.sp,
-                fontWeight: FontWeight.w600,
-                color: const Color(0xFF334155),
-              ),
-            ),
-            SizedBox(height: 1.h),
-            Container(
-              height: 46,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: const Color(0xFFCBD5E1)),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Center(
-                child: TextField(
-                  controller: editController,
-                  style: TextStyle(
-                    fontSize: 14.sp,
-                    color: const Color(0xFF1E293B),
-                  ),
-                  decoration: const InputDecoration(
-                    isDense: true,
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.zero,
-                  ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Brand Name',
+                style: TextStyle(
+                  fontSize: 13.5.sp,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF334155),
                 ),
               ),
-            ),
-          ],
+              SizedBox(height: 0.8.h),
+              _buildDialogField(nameCtrl, 'Brand Name'),
+              SizedBox(height: 1.5.h),
+              Text(
+                'Email',
+                style: TextStyle(
+                  fontSize: 13.5.sp,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF334155),
+                ),
+              ),
+              SizedBox(height: 0.8.h),
+              _buildDialogField(emailCtrl, 'Email Address'),
+              SizedBox(height: 1.5.h),
+              Text(
+                'Phone',
+                style: TextStyle(
+                  fontSize: 13.5.sp,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF334155),
+                ),
+              ),
+              SizedBox(height: 0.8.h),
+              _buildDialogField(phoneCtrl, 'Phone Number'),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -253,26 +269,31 @@ class _ProductCategoryScreenState extends State<ProductCategoryScreen> {
           ),
           ElevatedButton(
             onPressed: () {
-              final newName = editController.text.trim();
+              final newName = nameCtrl.text.trim();
               if (newName.isNotEmpty) {
-                final index = _categories.indexWhere((c) => c.id == item.id);
+                final index = _brands.indexWhere((b) => b.id == item.id);
                 if (index != -1) {
                   setState(() {
-                    _categories[index] = item.copyWith(name: newName);
+                    _brands[index] = item.copyWith(
+                      name: newName,
+                      email: emailCtrl.text.trim(),
+                      phone: phoneCtrl.text.trim(),
+                    );
                   });
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Brand "$newName" updated successfully.',
+                        style: TextStyle(fontSize: 14.sp, color: Colors.white),
+                      ),
+                      backgroundColor: const Color(0xFF15803D),
+                      behavior: SnackBarBehavior.floating,
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
                 }
                 Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Category updated to "$newName".',
-                      style: TextStyle(fontSize: 14.sp, color: Colors.white),
-                    ),
-                    backgroundColor: const Color(0xFF15803D),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
               }
             },
             style: ElevatedButton.styleFrom(
@@ -295,17 +316,48 @@ class _ProductCategoryScreenState extends State<ProductCategoryScreen> {
     );
   }
 
+  Widget _buildDialogField(TextEditingController ctrl, String hint) {
+    return Container(
+      height: 44,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: const Color(0xFFCBD5E1)),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Center(
+        child: TextField(
+          controller: ctrl,
+          style: TextStyle(
+            fontSize: 14.sp,
+            color: const Color(0xFF1E293B),
+          ),
+          decoration: InputDecoration(
+            isDense: true,
+            border: InputBorder.none,
+            hintText: hint,
+            hintStyle: TextStyle(
+              fontSize: 14.sp,
+              color: const Color(0xFF94A3B8),
+            ),
+            contentPadding: EdgeInsets.zero,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool canGoBack = Navigator.canPop(context);
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: CustomAppBar(
-        title: 'Product Categories',
+        title: 'All Brands',
         showBackButton: canGoBack,
         isDarkMode: false,
       ),
-      drawer: const CustomDrawer(isDarkMode: false, activeItem: 'All Categories'),
+      drawer: const CustomDrawer(isDarkMode: false, activeItem: 'All Brands'),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           setState(() {
@@ -333,8 +385,8 @@ class _ProductCategoryScreenState extends State<ProductCategoryScreen> {
 
                 SizedBox(height: 2.h),
 
-                // Categories Table Card
-                _buildCategoriesCard(context),
+                // Brands Table Card
+                _buildBrandsCard(context),
 
                 SizedBox(height: 5.h),
 
@@ -385,7 +437,7 @@ class _ProductCategoryScreenState extends State<ProductCategoryScreen> {
               SizedBox(width: 1.w),
             ],
             Text(
-              'All Categories',
+              'All Brands',
               style: TextStyle(
                 fontSize: 16.sp,
                 fontWeight: FontWeight.w800,
@@ -395,13 +447,13 @@ class _ProductCategoryScreenState extends State<ProductCategoryScreen> {
             ),
           ],
         ),
-        // + New Category Button
+        // + New Brand Button
         Material(
           color: const Color(0xFFFFA043),
           borderRadius: BorderRadius.circular(6),
           child: InkWell(
             onTap: () {
-              Get.to(() => const AddProductCategoryScreen());
+              Get.to(() => const AddBrandsScreen());
             },
             borderRadius: BorderRadius.circular(6),
             child: Padding(
@@ -419,7 +471,7 @@ class _ProductCategoryScreenState extends State<ProductCategoryScreen> {
                   ),
                   SizedBox(width: 1.w),
                   Text(
-                    'New Category',
+                    'New Brand',
                     style: TextStyle(
                       fontSize: 14.sp,
                       fontWeight: FontWeight.w700,
@@ -435,8 +487,8 @@ class _ProductCategoryScreenState extends State<ProductCategoryScreen> {
     );
   }
 
-  Widget _buildCategoriesCard(BuildContext context) {
-    final filtered = _filteredCategories;
+  Widget _buildBrandsCard(BuildContext context) {
+    final filtered = _filteredBrands;
 
     return Container(
       width: double.infinity,
@@ -484,7 +536,7 @@ class _ProductCategoryScreenState extends State<ProductCategoryScreen> {
                     decoration: InputDecoration(
                       isDense: true,
                       border: InputBorder.none,
-                      hintText: 'Search...',
+                      hintText: 'Search brands...',
                       hintStyle: TextStyle(
                         fontSize: 14.sp,
                         color: const Color(0xFF94A3B8),
@@ -500,14 +552,14 @@ class _ProductCategoryScreenState extends State<ProductCategoryScreen> {
 
           SizedBox(height: 2.5.h),
 
-          // Categories Table with Horizontal Scrolling Support
+          // Brands Table with Horizontal Scrolling
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: ConstrainedBox(
               constraints: const BoxConstraints(minWidth: 700),
               child: DataTable(
                 horizontalMargin: 16,
-                columnSpacing: 40,
+                columnSpacing: 35,
                 headingRowHeight: 48,
                 dataRowMinHeight: 60,
                 dataRowMaxHeight: 68,
@@ -516,7 +568,27 @@ class _ProductCategoryScreenState extends State<ProductCategoryScreen> {
                 columns: [
                   DataColumn(
                     label: Text(
-                      'Category Name',
+                      'Brand Name',
+                      style: TextStyle(
+                        fontSize: 14.5.sp,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF0F172A),
+                      ),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Text(
+                      'Email',
+                      style: TextStyle(
+                        fontSize: 14.5.sp,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF0F172A),
+                      ),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Text(
+                      'Phone',
                       style: TextStyle(
                         fontSize: 14.5.sp,
                         fontWeight: FontWeight.w700,
@@ -551,45 +623,56 @@ class _ProductCategoryScreenState extends State<ProductCategoryScreen> {
                           cells: [
                             DataCell(
                               Text(
-                                'No categories found',
+                                'No brands found.',
                                 style: TextStyle(
                                   fontSize: 14.sp,
-                                  color: const Color(0xFF64748B),
+                                  color: const Color(0xFF94A3B8),
+                                  fontStyle: FontStyle.italic,
                                 ),
                               ),
                             ),
                             const DataCell(Text('')),
                             const DataCell(Text('')),
+                            const DataCell(Text('')),
+                            const DataCell(Text('')),
                           ],
                         ),
                       ]
-                    : filtered.map((cat) {
+                    : filtered.map((item) {
                         return DataRow(
                           cells: [
-                            // Category Avatar and Name
+                            // Brand Name with Avatar
                             DataCell(
                               Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Container(
-                                    width: 38,
-                                    height: 38,
+                                    width: 36,
+                                    height: 36,
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFFF1F5F9),
-                                      borderRadius: BorderRadius.circular(6),
+                                      color: const Color(0xFFEFF6FF),
+                                      borderRadius: BorderRadius.circular(8),
                                       border: Border.all(
-                                        color: const Color(0xFFE2E8F0),
+                                        color: const Color(0xFFBFDBFE),
+                                        width: 1,
                                       ),
                                     ),
-                                    child: Icon(
-                                      cat.placeholderIcon,
-                                      color: const Color(0xFF475569),
-                                      size: 20,
+                                    child: Center(
+                                      child: Text(
+                                        item.name.isNotEmpty
+                                            ? item.name[0].toUpperCase()
+                                            : 'B',
+                                        style: TextStyle(
+                                          fontSize: 14.sp,
+                                          fontWeight: FontWeight.bold,
+                                          color: const Color(0xFF2563EB),
+                                        ),
+                                      ),
                                     ),
                                   ),
-                                  const SizedBox(width: 14),
+                                  SizedBox(width: 2.w),
                                   Text(
-                                    cat.name,
+                                    item.name,
                                     style: TextStyle(
                                       fontSize: 14.sp,
                                       fontWeight: FontWeight.w600,
@@ -599,45 +682,75 @@ class _ProductCategoryScreenState extends State<ProductCategoryScreen> {
                                 ],
                               ),
                             ),
-
-                            // Created At Date
+                            // Email
                             DataCell(
                               Text(
-                                cat.createdAt,
+                                item.email,
                                 style: TextStyle(
-                                  fontSize: 14.sp,
-                                  fontWeight: FontWeight.w500,
+                                  fontSize: 13.5.sp,
                                   color: const Color(0xFF475569),
                                 ),
                               ),
                             ),
-
-                            // Action Buttons: Edit & Delete
+                            // Phone
+                            DataCell(
+                              Text(
+                                item.phone,
+                                style: TextStyle(
+                                  fontSize: 13.5.sp,
+                                  color: const Color(0xFF475569),
+                                ),
+                              ),
+                            ),
+                            // Created At
+                            DataCell(
+                              Text(
+                                item.createdAt,
+                                style: TextStyle(
+                                  fontSize: 13.5.sp,
+                                  color: const Color(0xFF64748B),
+                                ),
+                              ),
+                            ),
+                            // Actions
                             DataCell(
                               Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   // Edit Button
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.edit_outlined,
-                                      size: 20,
-                                      color: Color(0xFF475569),
+                                  Material(
+                                    color: const Color(0xFFFFA043),
+                                    borderRadius: BorderRadius.circular(4),
+                                    child: InkWell(
+                                      onTap: () => _handleEdit(item),
+                                      borderRadius: BorderRadius.circular(4),
+                                      child: const Padding(
+                                        padding: EdgeInsets.all(6),
+                                        child: Icon(
+                                          Icons.edit_outlined,
+                                          color: Colors.white,
+                                          size: 16,
+                                        ),
+                                      ),
                                     ),
-                                    onPressed: () => _handleEdit(cat),
-                                    tooltip: 'Edit Category',
-                                    splashRadius: 20,
                                   ),
+                                  SizedBox(width: 1.5.w),
                                   // Delete Button
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.delete_outline_rounded,
-                                      size: 20,
-                                      color: Color(0xFFEF4444),
+                                  Material(
+                                    color: const Color(0xFFDC2626),
+                                    borderRadius: BorderRadius.circular(4),
+                                    child: InkWell(
+                                      onTap: () => _handleDelete(item),
+                                      borderRadius: BorderRadius.circular(4),
+                                      child: const Padding(
+                                        padding: EdgeInsets.all(6),
+                                        child: Icon(
+                                          Icons.delete_outline_rounded,
+                                          color: Colors.white,
+                                          size: 16,
+                                        ),
+                                      ),
                                     ),
-                                    onPressed: () => _handleDelete(cat),
-                                    tooltip: 'Delete Category',
-                                    splashRadius: 20,
                                   ),
                                 ],
                               ),
@@ -656,12 +769,10 @@ class _ProductCategoryScreenState extends State<ProductCategoryScreen> {
   Widget _buildFooter() {
     return Center(
       child: Text(
-        '© 2026 Copyright - Fablead Developers Technolab',
-        textAlign: TextAlign.center,
+        'Copyright © 2026 Fablead ERP. All rights reserved.',
         style: TextStyle(
-          fontSize: 14.sp,
-          fontWeight: FontWeight.w500,
-          color: const Color(0xFF64748B),
+          fontSize: 13.sp,
+          color: const Color(0xFF94A3B8),
         ),
       ),
     );

@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:sizer/sizer.dart';
 import '../core/constants/app_colors.dart';
 import '../core/constants/app_styles.dart';
-import '../widgets/custom_drawer.dart';
 import '../widgets/custom_app_bar.dart';
+import '../widgets/custom_bottom_bar.dart';
+import '../widgets/custom_drawer.dart';
+import 'products/view/product_screen.dart';
+import 'profile_screen.dart';
+import 'sales&bills/view/all_sales_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -113,7 +118,16 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: _buildBottomNavigationBar(cardBg, borderColor, textPrimary, textSecondary),
+      bottomNavigationBar: CustomBottomBar(
+        selectedIndex: _selectedBottomNavIndex,
+        isDarkMode: _isDarkMode,
+        onItemTapped: (index) {
+          setState(() {
+            _selectedBottomNavIndex = index;
+          });
+          _handleBottomNavTap(index);
+        },
+      ),
     );
   }
 
@@ -1128,66 +1142,24 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // --- Bottom Navigation Bar ---
-  Widget _buildBottomNavigationBar(
-    Color cardBg,
-    Color borderColor,
-    Color textPrimary,
-    Color textSecondary,
-  ) {
-    final navItems = [
-      {'label': 'Dashboard', 'icon': Icons.home_filled},
-      {'label': 'Sales', 'icon': Icons.trending_up_rounded},
-      {'label': 'Purchases', 'icon': Icons.shopping_cart_outlined},
-      {'label': 'More', 'icon': Icons.grid_view_rounded},
-    ];
-
-    return Container(
-      padding: EdgeInsets.symmetric(vertical: 0.8.h),
-      decoration: BoxDecoration(
-        color: cardBg,
-        border: Border(top: BorderSide(color: borderColor)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: List.generate(navItems.length, (index) {
-          final item = navItems[index];
-          final isSelected = _selectedBottomNavIndex == index;
-
-          return InkWell(
-            onTap: () {
-              setState(() {
-                _selectedBottomNavIndex = index;
-              });
-            },
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  item['icon'] as IconData,
-                  color: isSelected
-                      ? AppColors.tidcraftOrange
-                      : textSecondary,
-                  size: 18.sp, // BALANCED ICON SIZE
-                ),
-                SizedBox(height: 0.3.h),
-                Text(
-                  item['label'] as String,
-                  style: TextStyle(
-                    fontFamily: AppStyles.fontFamily,
-                    fontSize: 9.5.sp, // BALANCED LABEL FONT
-                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
-                    color: isSelected
-                        ? AppColors.tidcraftOrange
-                        : textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          );
-        }),
-      ),
-    );
+  void _handleBottomNavTap(int index) {
+    switch (index) {
+      case 0:
+        // Already on Dashboard
+        break;
+      case 1:
+        // Products
+        Get.to(() => const ProductScreen());
+        break;
+      case 2:
+        // Sale
+        Get.to(() => const AllSalesScreen());
+        break;
+      case 3:
+        // Profile
+        Get.to(() => const ProfileScreen());
+        break;
+    }
   }
 
 

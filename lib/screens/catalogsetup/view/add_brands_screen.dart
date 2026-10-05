@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 import '../../../core/widgets/calculator_widget.dart';
+import '../../../widgets/custom_app_bar.dart';
+import '../../../widgets/custom_drawer.dart';
 
 /// Screen for creating a new brand in the ERP catalog setup.
 class AddBrandsScreen extends StatefulWidget {
@@ -231,9 +233,15 @@ class _AddBrandsScreenState extends State<AddBrandsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Note: SafeArea is intentionally omitted per requirements.
+    final bool canGoBack = Navigator.canPop(context);
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
+      appBar: CustomAppBar(
+        title: 'Add Brand',
+        showBackButton: canGoBack,
+        isDarkMode: false,
+      ),
+      drawer: const CustomDrawer(isDarkMode: false, activeItem: 'New Brand'),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           setState(() {
@@ -649,7 +657,7 @@ class _AddBrandsScreenState extends State<AddBrandsScreen> {
                       if (_selectedFileSizeKb != null) ...[
                         SizedBox(height: 0.5.h),
                         Text(
-                          '${_selectedFileSizeKb} KB • Click to change image',
+                          '$_selectedFileSizeKb KB • Click to change image',
                           style: TextStyle(
                             fontSize: 14.sp,
                             color: const Color(0xFF64748B),

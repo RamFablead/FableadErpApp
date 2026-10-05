@@ -3,7 +3,11 @@ import 'package:get/get.dart';
 import 'package:sizer/sizer.dart';
 import '../../../core/widgets/calculator_widget.dart';
 import '../../../widgets/custom_app_bar.dart';
+import '../../../widgets/custom_bottom_bar.dart';
 import '../../../widgets/custom_drawer.dart';
+import '../../home_screen.dart';
+import '../../profile_screen.dart';
+import '../../sales&bills/view/all_sales_screen.dart';
 import 'add_product_screen.dart';
 import 'import_product_screen.dart';
 
@@ -696,6 +700,26 @@ class _ProductScreenState extends State<ProductScreen> {
         isDarkMode: false,
       ),
       drawer: const CustomDrawer(isDarkMode: false, activeItem: 'Products'),
+      bottomNavigationBar: CustomBottomBar(
+        selectedIndex: 1, // Products tab
+        isDarkMode: false,
+        onItemTapped: (index) {
+          switch (index) {
+            case 0:
+              Get.offAll(() => const HomeScreen());
+              break;
+            case 1:
+              // Already on Products
+              break;
+            case 2:
+              Get.to(() => const AllSalesScreen());
+              break;
+            case 3:
+              Get.to(() => const ProfileScreen());
+              break;
+          }
+        },
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           setState(() {
