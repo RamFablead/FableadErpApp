@@ -193,9 +193,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
                   // Profile Avatar with Status Dot
                   GestureDetector(
-             onTap: () {
-               Get.to(ProfileScreen());
-             },
+                    onTap: onProfileTap ?? () => Get.to(() => const ProfileScreen()),
                     child: Stack(
                       clipBehavior: Clip.none,
                       children: [
@@ -415,79 +413,6 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
           ),
         );
       },
-    );
-  }
-
-  void _showProfileDialog(
-      BuildContext context, bool isDarkMode, Color textPrimary) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: isDarkMode ? AppColors.tidcraftCardBg : Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFFF7A00), AppColors.primary],
-                ),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Center(
-                child: Text(
-                  'FE',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-              ),
-            ),
-            SizedBox(width: 3.5.w),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Fablead Admin',
-                    style: TextStyle(
-                      fontFamily: AppStyles.fontFamily,
-                      color: textPrimary,
-                      fontSize: 14.sp,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    'admin@fableaderp.com',
-                    style: TextStyle(
-                      fontFamily: AppStyles.fontFamily,
-                      color: Colors.grey,
-                      fontSize: 11.sp,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Close',
-              style: TextStyle(
-                fontFamily: AppStyles.fontFamily,
-                fontWeight: FontWeight.bold,
-                color: AppColors.primary,
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

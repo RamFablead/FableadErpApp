@@ -18,7 +18,7 @@ android {
     namespace = "com.erpmain.erp"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
-112
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -38,11 +38,11 @@ android {
 
     signingConfigs {
         create("release") {
-            keyAlias = keystoreProperties.getProperty("keyAlias") ?: "upload"
-            keyPassword = keystoreProperties.getProperty("keyPassword") ?: "fableaderp123"
+            keyAlias = keystoreProperties.getProperty("keyAlias") ?: "fablead-erp"
+            keyPassword = keystoreProperties.getProperty("keyPassword") ?: "123456"
             storeFile = keystoreProperties.getProperty("storeFile")?.let { file(it) }
-                ?: file("upload-keystore.jks")
-            storePassword = keystoreProperties.getProperty("storePassword") ?: "fableaderp123"
+                ?: file("fablead-erp.jks")
+            storePassword = keystoreProperties.getProperty("storePassword") ?: "123456"
         }
     }
 
