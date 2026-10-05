@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sizer/sizer.dart';
+
 import '../../../core/widgets/calculator_widget.dart';
 import '../../../models/order_model.dart';
 import '../../../services/order_service.dart';
@@ -10,53 +11,8 @@ import '../../../widgets/custom_drawer.dart';
 import '../../home_screen.dart';
 import '../../products/view/product_screen.dart';
 import '../../profile_screen.dart';
+import 'sales_detail_screen.dart';
 import 'sales_screen.dart';
-
-/// Model representing a single Sales & Bill row item
-class SalesBillItem {
-  final String orderNo;
-  final DateTime date;
-  final String customer;
-  final String staff;
-  final String orderType;
-  final String orderStatus; // 'Pending' | 'Paid' | 'Delivered' | 'Cancelled'
-  final String paymentStatus; // 'Unpaid' | 'Paid'
-  final double amount;
-  final bool hasGst;
-  final Color iconBgColor;
-  final Color iconColor;
-
-  const SalesBillItem({
-    required this.orderNo,
-    required this.date,
-    required this.customer,
-    required this.staff,
-    required this.orderType,
-    required this.orderStatus,
-    required this.paymentStatus,
-    required this.amount,
-    required this.hasGst,
-    required this.iconBgColor,
-    required this.iconColor,
-  });
-}
-
-/// Model representing a Draft Bill item
-class SalesDraftItem {
-  final String draftId;
-  final String title;
-  final DateTime date;
-  final double amount;
-  final String billType;
-
-  const SalesDraftItem({
-    required this.draftId,
-    required this.title,
-    required this.date,
-    required this.amount,
-    required this.billType,
-  });
-}
 
 /// Currency formatting helper
 String _formatCurrency(double amount) {
@@ -87,7 +43,7 @@ class AllSalesScreen extends StatefulWidget {
   State<AllSalesScreen> createState() => _AllSalesScreenState();
 }
 
-/// Internal state container for each GST Tab (Without GST Bills vs With GST Bills)
+/// Internal state container for each GST Tab
 class _GstTabState {
   final List<OrderItemModel> orders = [];
   bool isLoading = false;
@@ -110,20 +66,10 @@ class _AllSalesScreenState extends State<AllSalesScreen> {
   // Search
   final TextEditingController _searchController = TextEditingController();
 
-  // Filter Dropdowns
-  String _selectedMonth = 'All Months';
-  String _selectedYear = 'All Years';
-  String _selectedFinancialYear = 'All Financial Years';
-  String _selectedStaff = 'All Staff';
-  DateTime? _selectedDate;
-  String _selectedOrderType = 'All Order Types';
-  String _selectedStatus = 'All Statuses';
-  String _selectedSort = 'Latest First';
-
   // Floating Calculator overlay
   bool _isCalculatorOpen = false;
 
-  // --- Live API State per GST Tab ---
+  // Live API State
   final OrderService _orderService = OrderService();
   final _GstTabState _withoutGstState = _GstTabState();
   final _GstTabState _withGstState = _GstTabState();
@@ -135,11 +81,6 @@ class _AllSalesScreenState extends State<AllSalesScreen> {
   bool get _isLoadingMore => _currentState.isLoadingMore;
   bool get _hasError => _currentState.hasError;
   String get _errorMessage => _currentState.errorMessage;
-  int get _currentPage => _currentState.currentPage;
-  int get _lastPage => _currentState.lastPage;
-  double get _totalAmount => _currentState.totalAmount;
-  double get _totalPendingAmount => _currentState.totalPendingAmount;
-  double get _totalPaidAmount => _currentState.totalPaidAmount;
 
   String _getGstOptionForTab(String tab) {
     return tab == 'With GST Bills' ? 'with_gst' : 'without_gst';
@@ -148,67 +89,12 @@ class _AllSalesScreenState extends State<AllSalesScreen> {
   // Scroll controller for pagination
   final ScrollController _scrollController = ScrollController();
 
-  // Dummy Drafts
-  final List<SalesDraftItem> _drafts = [
-    SalesDraftItem(
-      draftId: 'DFT-001',
-      title: 'Draft - Rahul Sharma',
-      date: DateTime(2026, 10, 2),
-      amount: 2500.00,
-      billType: 'Sales',
-    ),
-    SalesDraftItem(
-      draftId: 'DFT-002',
-      title: 'Quotation - Priya Patel',
-      date: DateTime(2026, 9, 29),
-      amount: 1850.00,
-      billType: 'Quotation',
-    ),
-    SalesDraftItem(
-      draftId: 'DFT-003',
-      title: 'Rental - Amit Mehta',
-      date: DateTime(2026, 9, 28),
-      amount: 3200.00,
-      billType: 'Rental',
-    ),
-  ];
-
-  // Dropdown lists
-  final List<String> _monthsList = [
-    'All Months', 'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
-
-  final List<String> _yearsList = [
-    'All Years', '2027', '2026', '2025', '2024'
-  ];
-
-  final List<String> _financialYearsList = [
-    'All Financial Years', 'FY 2026-27', 'FY 2025-26', 'FY 2024-25'
-  ];
-
-  final List<String> _staffList = [
-    'All Staff', 'Amrita Patel', 'Neha Shah', 'Vikram Chauhan', 'Rohan Desai', 'Priya Patel'
-  ];
-
-  final List<String> _orderTypesList = [
-    'All Order Types', 'Self Pickup', 'Home Delivery', 'Courier Delivery'
-  ];
-
-  final List<String> _statusList = [
-    'All Statuses', 'Pending', 'Paid', 'Delivered', 'Cancelled'
-  ];
-
-  final List<String> _sortList = [
-    'Latest First', 'Oldest First', 'Highest Amount', 'Lowest Amount'
-  ];
-
   @override
   void initState() {
     super.initState();
-    // Load Without GST Bills (initial active tab)
+    // Load Without GST Bills (initial tab)
     _fetchOrders(tab: 'Without GST Bills', page: 1, isRefresh: true);
-    // Pre-fetch With GST Bills in background so tab switching is instantaneous
+    // Pre-fetch With GST Bills in background
     _fetchOrders(tab: 'With GST Bills', page: 1, isRefresh: true);
     _scrollController.addListener(_onScroll);
   }
@@ -292,7 +178,7 @@ class _AllSalesScreenState extends State<AllSalesScreen> {
     await _fetchOrders(tab: _selectedGstTab, page: state.currentPage + 1);
   }
 
-  // Filtered orders from live API data for active tab
+  // Filtered orders list
   List<OrderItemModel> get _filteredOrders {
     final query = _searchController.text.trim().toLowerCase();
     final list = _currentState.orders;
@@ -305,820 +191,6 @@ class _AllSalesScreenState extends State<AllSalesScreen> {
       final matchesStaff = order.effectiveStaffName.toLowerCase().contains(query);
       return matchesNo || matchesCust || matchesStaff;
     }).toList();
-  }
-
-  Future<void> _pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate ?? DateTime.now(),
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2035),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: Color(0xFFFF6B2C),
-              onPrimary: Colors.white,
-              onSurface: Color(0xFF0F172A),
-            ),
-          ),
-          child: child!,
-        );
-      },
-    );
-    if (picked != null) {
-      setState(() => _selectedDate = picked);
-    }
-  }
-
-  // --- Show Import Dialog ---
-  void _showImportDialog() {
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        return Dialog(
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          insetPadding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Import Sales & Bills',
-                      style: TextStyle(
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF0F172A),
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded),
-                      onPressed: () => Navigator.pop(ctx),
-                      color: const Color(0xFF64748B),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Upload an Excel or CSV file containing sales bill records.',
-                  style: TextStyle(
-                    fontSize: 14.sp,
-                    color: const Color(0xFF64748B),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: const Color(0xFFCBD5E1),
-                      style: BorderStyle.solid,
-                    ),
-                  ),
-                  child: Column(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFFFF7ED),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.cloud_upload_outlined,
-                          color: Color(0xFFFF6B2C),
-                          size: 32,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        'Tap here to browse file',
-                        style: TextStyle(
-                          fontSize: 14.5.sp,
-                          fontWeight: FontWeight.w700,
-                          color: const Color(0xFFFF6B2C),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Supports .xlsx, .xls, .csv',
-                        style: TextStyle(
-                          fontSize: 14.sp,
-                          color: const Color(0xFF94A3B8),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          side: const BorderSide(color: Color(0xFFCBD5E1)),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        child: Text(
-                          'Cancel',
-                          style: TextStyle(
-                            fontSize: 14.sp,
-                            fontWeight: FontWeight.w600,
-                            color: const Color(0xFF475569),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.pop(ctx);
-                          Get.snackbar(
-                            'Import Successful',
-                            'Sample sales data imported successfully.',
-                            snackPosition: SnackPosition.BOTTOM,
-                            backgroundColor: const Color(0xFF22C55E),
-                            colorText: Colors.white,
-                            margin: const EdgeInsets.all(12),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFFF6B2C),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        child: Text(
-                          'Upload & Import',
-                          style: TextStyle(
-                            fontSize: 14.sp,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  // --- Show Drafts Dialog ---
-  void _showDraftsDialog() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (ctx) {
-        return SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Icon(
-                    Icons.description_outlined,
-                    color: Color(0xFF0F172A),
-                    size: 22,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'All Draft Bills (${_drafts.length})',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF0F172A),
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close_rounded),
-                    onPressed: () => Navigator.pop(ctx),
-                    color: const Color(0xFF64748B),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              ..._drafts.map((draft) {
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFF7ED),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(
-                          Icons.edit_note_rounded,
-                          color: Color(0xFFFF6B2C),
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              draft.title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 14.5.sp,
-                                fontWeight: FontWeight.w700,
-                                color: const Color(0xFF0F172A),
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              '${draft.billType} • ${_formatDate(draft.date)}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 14.sp,
-                                color: const Color(0xFF64748B),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            _formatCurrency(draft.amount),
-                            style: TextStyle(
-                              fontSize: 14.sp,
-                              fontWeight: FontWeight.w700,
-                              color: const Color(0xFF0F172A),
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Material(
-                            color: const Color(0xFFFF6B2C),
-                            borderRadius: BorderRadius.circular(6),
-                            child: InkWell(
-                              onTap: () {
-                                Navigator.pop(ctx);
-                                Get.to(() => const SalesScreen());
-                              },
-                              borderRadius: BorderRadius.circular(6),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 4),
-                                child: Text(
-                                  'Resume',
-                                  style: TextStyle(
-                                    fontSize: 14.sp,
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                );
-              }),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  // --- Show Bill Action Bottom Sheet ---
-  void _showBillActionSheet(OrderItemModel order) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (ctx) {
-        return SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Order Options • ${order.orderNumber}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF0F172A),
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close_rounded),
-                    onPressed: () => Navigator.pop(ctx),
-                    color: const Color(0xFF64748B),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              _buildActionSheetOption(
-                icon: Icons.visibility_outlined,
-                label: 'View Bill Details',
-                onTap: () {
-                  Navigator.pop(ctx);
-                  Get.snackbar(
-                    'Order ${order.orderNumber}',
-                    'Viewing bill for ${order.customerName}',
-                    snackPosition: SnackPosition.BOTTOM,
-                    backgroundColor: const Color(0xFF0F172A),
-                    colorText: Colors.white,
-                  );
-                },
-              ),
-              _buildActionSheetOption(
-                icon: Icons.print_outlined,
-                label: 'Print Thermal Receipt',
-                onTap: () {
-                  Navigator.pop(ctx);
-                  Get.snackbar(
-                    'Printing',
-                    'Receipt queued to connected printer',
-                    snackPosition: SnackPosition.BOTTOM,
-                    backgroundColor: const Color(0xFF0F172A),
-                    colorText: Colors.white,
-                  );
-                },
-              ),
-              _buildActionSheetOption(
-                icon: Icons.picture_as_pdf_outlined,
-                label: 'Download PDF Invoice',
-                onTap: () {
-                  Navigator.pop(ctx);
-                  Get.snackbar(
-                    'PDF Saved',
-                    'Invoice downloaded to device storage',
-                    snackPosition: SnackPosition.BOTTOM,
-                    backgroundColor: const Color(0xFF22C55E),
-                    colorText: Colors.white,
-                  );
-                },
-              ),
-              _buildActionSheetOption(
-                icon: Icons.edit_outlined,
-                label: 'Edit Order',
-                onTap: () {
-                  Navigator.pop(ctx);
-                  Get.to(() => const SalesScreen());
-                },
-              ),
-              _buildActionSheetOption(
-                icon: Icons.delete_outline_rounded,
-                label: 'Delete Bill',
-                color: const Color(0xFFEF4444),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _confirmDeleteOrder(order);
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  void _confirmDeleteOrder(OrderItemModel order) {
-    showDialog(
-      context: context,
-      builder: (dialogCtx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        title: Row(
-          children: [
-            const Icon(Icons.delete_outline_rounded,
-                color: Color(0xFFEF4444), size: 24),
-            const SizedBox(width: 8),
-            Text(
-              'Delete Order',
-              style: TextStyle(
-                fontSize: 16.sp,
-                fontWeight: FontWeight.w700,
-                color: const Color(0xFF0F172A),
-              ),
-            ),
-          ],
-        ),
-        content: Text(
-          'Are you sure you want to delete order #${order.orderNumber}?',
-          style: TextStyle(
-            fontSize: 14.sp,
-            color: const Color(0xFF475569),
-          ),
-        ),
-        actionsPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogCtx),
-            child: Text(
-              'Cancel',
-              style: TextStyle(
-                color: const Color(0xFF64748B),
-                fontSize: 14.sp,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFEF4444),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8)),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              elevation: 0,
-            ),
-            onPressed: () {
-              Navigator.pop(dialogCtx);
-              _handleDeleteOrder(order);
-            },
-            child: Text(
-              'Delete',
-              style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w700),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _handleDeleteOrder(OrderItemModel order) async {
-    Get.showSnackbar(
-      const GetSnackBar(
-        message: 'Deleting order...',
-        duration: Duration(seconds: 1),
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Color(0xFF0F172A),
-        showProgressIndicator: true,
-      ),
-    );
-
-    try {
-      final response = await _orderService.deleteOrder(order.id);
-
-      if (response.status) {
-        setState(() {
-          _withoutGstState.orders.removeWhere((o) => o.id == order.id);
-          _withGstState.orders.removeWhere((o) => o.id == order.id);
-        });
-
-        Get.closeCurrentSnackbar();
-        Get.snackbar(
-          'Deleted',
-          response.message.isNotEmpty
-              ? response.message
-              : 'Order deleted successfully.',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: const Color(0xFF22C55E),
-          colorText: Colors.white,
-          icon: const Icon(Icons.check_circle_outline, color: Colors.white),
-          duration: const Duration(seconds: 3),
-        );
-
-        // Refresh orders list to keep counts and totals updated
-        _fetchOrders(page: 1, isRefresh: true);
-      } else {
-        Get.closeCurrentSnackbar();
-        Get.snackbar(
-          'Failed',
-          response.message.isNotEmpty
-              ? response.message
-              : 'Failed to delete order',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: const Color(0xFFEF4444),
-          colorText: Colors.white,
-          icon: const Icon(Icons.error_outline, color: Colors.white),
-          duration: const Duration(seconds: 3),
-        );
-      }
-    } catch (e) {
-      Get.closeCurrentSnackbar();
-      Get.snackbar(
-        'Error',
-        e.toString(),
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: const Color(0xFFEF4444),
-        colorText: Colors.white,
-        icon: const Icon(Icons.error_outline, color: Colors.white),
-        duration: const Duration(seconds: 4),
-      );
-    }
-  }
-
-  Widget _buildActionSheetOption({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-    Color color = const Color(0xFF0F172A),
-  }) {
-    return ListTile(
-      leading: Icon(icon, color: color, size: 22),
-      title: Text(
-        label,
-        style: TextStyle(
-          fontSize: 14.5.sp,
-          fontWeight: FontWeight.w600,
-          color: color,
-        ),
-      ),
-      contentPadding: EdgeInsets.zero,
-      onTap: onTap,
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      appBar: const CustomAppBar(
-        title: 'All Sales & Bills',
-        showBackButton: false,
-        isDarkMode: false,
-      ),
-      drawer: const CustomDrawer(isDarkMode: false, activeItem: 'Sale'),
-      bottomNavigationBar: CustomBottomBar(
-        selectedIndex: 2, // Sale tab
-        isDarkMode: false,
-        onItemTapped: (index) {
-          switch (index) {
-            case 0:
-              Get.offAll(() => const HomeScreen());
-              break;
-            case 1:
-              Get.to(() => const ProductScreen());
-              break;
-            case 2:
-              // Already on Sale
-              break;
-            case 3:
-              Get.to(() => const ProfileScreen());
-              break;
-          }
-        },
-      ),
-      body: Stack(
-        children: [
-          RefreshIndicator(
-            color: const Color(0xFFFF6B2C),
-            onRefresh: () => _fetchOrders(tab: _selectedGstTab, page: 1, isRefresh: true),
-            child: SingleChildScrollView(
-              controller: _scrollController,
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildHeaderBar(),
-                  const SizedBox(height: 14),
-
-                  // 1. With GST / Without GST Tabs Switcher (Active)
-                  _buildGstTabSwitcher(),
-                  const SizedBox(height: 14),
-
-                  // 2. Search Bar (Active)
-                  _buildSearchBar(),
-                  const SizedBox(height: 14),
-
-                  /* ================================================================
-                     DROPDOWN FILTERS COMMENTED OUT AS PER REQUEST (CAN BE RESTORED)
-                     ================================================================
-                  _buildFilterDropdownsGrid(),
-                  const SizedBox(height: 14),
-                  ================================================================ */
-
-                  /*
-                  // Summary Metrics & Export Row (Commented Out as per request)
-                  _buildSummaryAndExportRow(),
-                  const SizedBox(height: 16),
-                  */
-
-                  _buildBillsList(),
-
-                  // Load more indicator
-                  if (_isLoadingMore)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 16),
-                      child: Center(
-                        child: CircularProgressIndicator(
-                          color: Color(0xFFFF6B2C),
-                          strokeWidth: 2,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-
-          // Floating Calculator Widget overlay
-          if (_isCalculatorOpen)
-            Positioned(
-              right: 16,
-              bottom: 80,
-              child: CalculatorWidget(
-                onClose: () => setState(() => _isCalculatorOpen = false),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  // --- 1. Top Action Bar: Clean Bill Counter on left, New Sale Button on right ---
-  Widget _buildHeaderBar() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        // Left: Clean Active Bill Counter
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          decoration: BoxDecoration(
-            color: const Color(0xFF1E2746).withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: const Color(0xFF1E2746).withValues(alpha: 0.15)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.receipt_long_rounded,
-                color: Color(0xFF1E2746),
-                size: 15,
-              ),
-              const SizedBox(width: 5),
-              Text(
-                '${_filteredOrders.length} Bills',
-                style: TextStyle(
-                  fontSize: 12.5.sp,
-                  fontWeight: FontWeight.w700,
-                  color: const Color(0xFF1E2746),
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        // Right: Action Buttons (All Drafts and Import commented out as requested)
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            /*
-            // "All Drafts" Navy button (Commented Out)
-            Material(
-              color: const Color(0xFF0F172A),
-              borderRadius: BorderRadius.circular(8),
-              child: InkWell(
-                onTap: _showDraftsDialog,
-                borderRadius: BorderRadius.circular(8),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6.5),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.description_outlined,
-                        color: Colors.white,
-                        size: 14,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'All Drafts',
-                        style: TextStyle(
-                          fontSize: 12.sp,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 6),
-
-            // "Import" Orange button (Commented Out)
-            Material(
-              color: const Color(0xFFF97316),
-              borderRadius: BorderRadius.circular(8),
-              child: InkWell(
-                onTap: _showImportDialog,
-                borderRadius: BorderRadius.circular(8),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6.5),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.file_upload_outlined,
-                        color: Colors.white,
-                        size: 14,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Import',
-                        style: TextStyle(
-                          fontSize: 12.sp,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 6),
-            */
-
-            // "+ New Sale" Vibrant Orange button
-            Material(
-              color: const Color(0xFFFF6B2C),
-              borderRadius: BorderRadius.circular(8),
-              child: InkWell(
-                onTap: () => Get.to(() => const SalesScreen()),
-                borderRadius: BorderRadius.circular(8),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.add_rounded,
-                        color: Colors.white,
-                        size: 16,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'New Sale',
-                        style: TextStyle(
-                          fontSize: 12.5.sp,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
   }
 
   void _switchGstTab(String tab) {
@@ -1137,29 +209,427 @@ class _AllSalesScreenState extends State<AllSalesScreen> {
     }
   }
 
-  // --- 2. Tab Switcher: "Without GST Bills" | "With GST Bills" ---
+  // Delete Action
+  void _confirmDeleteOrder(OrderItemModel order) {
+    showDialog(
+      context: context,
+      builder: (dialogCtx) =>
+          AlertDialog(
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16)),
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEE2E2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                      Icons.delete_outline_rounded, color: Color(0xFFEF4444),
+                      size: 22),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Delete Bill',
+              style: TextStyle(
+                fontSize: 16.sp,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFF0F172A),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'Are you sure you want to delete bill #${order
+              .orderNumber}? This action cannot be undone.',
+          style: TextStyle(fontSize: 13.5.sp, color: const Color(0xFF475569)),
+        ),
+            actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: const Color(0xFF64748B),
+                  fontSize: 13.5.sp,
+                  fontWeight: FontWeight.w600),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+              elevation: 0,
+            ),
+            onPressed: () {
+              Navigator.pop(dialogCtx);
+              _handleDeleteOrder(order);
+            },
+            child: Text('Delete', style: TextStyle(
+                fontSize: 13.5.sp, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleDeleteOrder(OrderItemModel order) async {
+    Get.showSnackbar(
+      const GetSnackBar(
+        message: 'Deleting bill...',
+        duration: Duration(seconds: 1),
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Color(0xFF0F172A),
+        showProgressIndicator: true,
+      ),
+    );
+
+    try {
+      final response = await _orderService.deleteOrder(order.id);
+      if (response.status) {
+        setState(() {
+          _withoutGstState.orders.removeWhere((o) => o.id == order.id);
+          _withGstState.orders.removeWhere((o) => o.id == order.id);
+        });
+
+        Get.closeCurrentSnackbar();
+        Get.snackbar(
+          'Deleted',
+          response.message.isNotEmpty
+              ? response.message
+              : 'Bill deleted successfully.',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: const Color(0xFF10B981),
+          colorText: Colors.white,
+          icon: const Icon(Icons.check_circle_outline, color: Colors.white),
+        );
+        _fetchOrders(page: 1, isRefresh: true);
+      } else {
+        Get.closeCurrentSnackbar();
+        Get.snackbar(
+          'Failed',
+          response.message.isNotEmpty
+              ? response.message
+              : 'Failed to delete order',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: const Color(0xFFEF4444),
+          colorText: Colors.white,
+        );
+      }
+    } catch (e) {
+      Get.closeCurrentSnackbar();
+      Get.snackbar(
+        'Error',
+        e.toString(),
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: const Color(0xFFEF4444),
+        colorText: Colors.white,
+      );
+    }
+  }
+
+  void _showBillActionSheet(OrderItemModel order) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE2E8F0),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                Row(
+                  children: [
+                    Text(
+                      'Bill #${order.orderNumber}',
+                      style: TextStyle(
+                        fontSize: 16.sp,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF0F172A),
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, size: 20),
+                      onPressed: () => Navigator.pop(ctx),
+                      color: const Color(0xFF64748B),
+                    ),
+                  ],
+                ),
+                const Divider(height: 16, color: Color(0xFFF1F5F9)),
+                _buildActionTile(
+                  icon: Icons.visibility_outlined,
+                  label: 'View Bill Details',
+                  color: const Color(0xFF0F172A),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    Get.to(() =>
+                        SalesDetailScreen(
+                          orderId: order.id,
+                          initialOrder: order,
+                        ));
+                  },
+                ),
+                _buildActionTile(
+                  icon: Icons.picture_as_pdf_outlined,
+                  label: 'Download PDF Invoice',
+                  color: const Color(0xFF0F172A),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    Get.snackbar(
+                      'PDF Saved',
+                      'Invoice downloaded successfully',
+                      snackPosition: SnackPosition.BOTTOM,
+                      backgroundColor: const Color(0xFF10B981),
+                      colorText: Colors.white,
+                    );
+                  },
+                ),
+                _buildActionTile(
+                  icon: Icons.edit_outlined,
+                  label: 'Edit Bill',
+                  color: const Color(0xFF0F172A),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    Get.to(() => SalesScreen(editOrderId: order.id));
+                  },
+                ),
+                _buildActionTile(
+                  icon: Icons.delete_outline_rounded,
+                  label: 'Delete Bill',
+                  color: const Color(0xFFEF4444),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _confirmDeleteOrder(order);
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildActionTile({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    required Color color,
+  }) {
+    return ListTile(
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(icon, color: color, size: 20),
+      ),
+      title: Text(
+        label,
+        style: TextStyle(
+          fontSize: 14.sp,
+          fontWeight: FontWeight.w600,
+          color: color,
+        ),
+      ),
+      trailing: const Icon(
+          Icons.arrow_forward_ios_rounded, size: 14, color: Color(0xFF94A3B8)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      onTap: onTap,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
+      appBar: const CustomAppBar(
+        title: 'All Sales & Bills',
+        showBackButton: false,
+        isDarkMode: false,
+      ),
+      drawer: const CustomDrawer(isDarkMode: false, activeItem: 'Sale'),
+      bottomNavigationBar: CustomBottomBar(
+        selectedIndex: 2,
+        isDarkMode: false,
+        onItemTapped: (index) {
+          switch (index) {
+            case 0:
+              Get.offAll(() => const HomeScreen());
+              break;
+            case 1:
+              Get.to(() => const ProductScreen());
+              break;
+            case 2:
+              break;
+            case 3:
+              Get.to(() => const ProfileScreen());
+              break;
+          }
+        },
+      ),
+      body: Stack(
+        children: [
+          RefreshIndicator(
+            color: const Color(0xFFFF6B2C),
+            onRefresh: () => _fetchOrders(tab: _selectedGstTab, page: 1, isRefresh: true),
+            child: SingleChildScrollView(
+              controller: _scrollController,
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHeaderBar(),
+                  const SizedBox(height: 14),
+
+                  // GST Tab Switcher (Without GST vs With GST)
+                  _buildGstTabSwitcher(),
+                  const SizedBox(height: 14),
+
+                  // Modern Search Input
+                  _buildSearchBar(),
+                  const SizedBox(height: 16),
+
+                  // Bills List
+                  _buildBillsList(),
+
+                  if (_isLoadingMore)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 20),
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          color: Color(0xFFFF6B2C),
+                          strokeWidth: 2.5,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+
+          if (_isCalculatorOpen)
+            Positioned(
+              right: 16,
+              bottom: 85,
+              child: CalculatorWidget(
+                onClose: () => setState(() => _isCalculatorOpen = false),
+              ),
+            ),
+        ],
+      ),
+      // floatingActionButton: FloatingActionButton.small(
+      //   backgroundColor: const Color(0xFF1E293B),
+      //   elevation: 3,
+      //   onPressed: () => setState(() => _isCalculatorOpen = !_isCalculatorOpen),
+      //   child: Icon(
+      //     _isCalculatorOpen ? Icons.close_rounded : Icons.calculate_outlined,
+      //     color: Colors.white,
+      //   ),
+      // ),
+    );
+  }
+
+  // --- 1. Top Header Bar ---
+  Widget _buildHeaderBar() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFF6B2C).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                      Icons.receipt_long_rounded, color: Color(0xFFFF6B2C),
+                      size: 16),
+                  const SizedBox(width: 6),
+                  Text(
+                    '${_filteredOrders.length} Bills',
+                    style: TextStyle(
+                      fontSize: 13.sp,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFFFF6B2C),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+
+        // "+ New Sale" Button
+        ElevatedButton.icon(
+          onPressed: () => Get.to(() => const SalesScreen()),
+          icon: const Icon(Icons.add_rounded, size: 18, color: Colors.white),
+          label: Text(
+            'New Sale',
+            style: TextStyle(
+              fontSize: 13.sp,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+            ),
+          ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFFFF6B2C),
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10)),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // --- 2. Redesigned GST Tab Switcher ---
   Widget _buildGstTabSwitcher() {
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
       padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE2E8F0).withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: Row(
         children: [
           Expanded(
-            child: _buildGstTabPill(
+            child: _buildGstTabItem(
               title: 'Without GST Bills',
               isSelected: _selectedGstTab == 'Without GST Bills',
+              count: _withoutGstState.isLoaded ? _withoutGstState.total : null,
               onTap: () => _switchGstTab('Without GST Bills'),
             ),
           ),
-          const SizedBox(width: 4),
           Expanded(
-            child: _buildGstTabPill(
+            child: _buildGstTabItem(
               title: 'With GST Bills',
               isSelected: _selectedGstTab == 'With GST Bills',
+              count: _withGstState.isLoaded ? _withGstState.total : null,
               onTap: () => _switchGstTab('With GST Bills'),
             ),
           ),
@@ -1168,31 +638,65 @@ class _AllSalesScreenState extends State<AllSalesScreen> {
     );
   }
 
-  Widget _buildGstTabPill({
+  Widget _buildGstTabItem({
     required String title,
     required bool isSelected,
+    int? count,
     required VoidCallback onTap,
   }) {
-    return Material(
-      color: isSelected ? const Color(0xFFFF6B2C) : Colors.transparent,
-      borderRadius: BorderRadius.circular(6),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(6),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Center(
-            child: Text(
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeInOut,
+        padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          boxShadow: isSelected
+              ? [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ]
+              : null,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
               title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontSize: 14.sp,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                color: isSelected ? Colors.white : const Color(0xFF64748B),
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                color: isSelected ? const Color(0xFF0F172A) : const Color(
+                    0xFF64748B),
               ),
             ),
-          ),
+            if (count != null) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: isSelected ? const Color(0xFFFF6B2C) : const Color(
+                      0xFFCBD5E1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '$count',
+                  style: TextStyle(
+                    fontSize: 10.5.sp,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ],
         ),
       ),
     );
@@ -1201,479 +705,92 @@ class _AllSalesScreenState extends State<AllSalesScreen> {
   // --- 3. Search Bar ---
   Widget _buildSearchBar() {
     return Container(
-      height: 44,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFCBD5E1)),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: TextField(
         controller: _searchController,
         onChanged: (_) => setState(() {}),
-        style: TextStyle(
-          fontSize: 14.sp,
-          color: const Color(0xFF0F172A),
-        ),
+        style: TextStyle(fontSize: 13.5.sp, color: const Color(0xFF0F172A)),
         decoration: InputDecoration(
-          hintText: 'Search order number, customer...',
+          hintText: 'Search bill no, customer, staff...',
           hintStyle: TextStyle(
-            fontSize: 14.sp,
+            fontSize: 13.5.sp,
             color: const Color(0xFF94A3B8),
             fontWeight: FontWeight.w400,
           ),
           prefixIcon: const Icon(
-            Icons.search_rounded,
-            color: Color(0xFF64748B),
-            size: 20,
-          ),
+              Icons.search_rounded, color: Color(0xFF64748B), size: 20),
           suffixIcon: _searchController.text.isNotEmpty
               ? IconButton(
-                  icon: const Icon(Icons.clear_rounded, size: 18),
-                  onPressed: () {
-                    _searchController.clear();
-                    setState(() {});
-                  },
-                )
+            icon: const Icon(Icons.close_rounded, size: 18),
+            onPressed: () {
+              _searchController.clear();
+              setState(() {});
+            },
+          )
               : null,
-          contentPadding: const EdgeInsets.symmetric(vertical: 10),
+          contentPadding: const EdgeInsets.symmetric(vertical: 12),
           border: InputBorder.none,
         ),
       ),
     );
   }
 
-  // --- 4. 2x4 Filter Dropdowns Grid ---
-  Widget _buildFilterDropdownsGrid() {
-    return Column(
-      children: [
-        // Row 1: All Months | All Years
-        Row(
-          children: [
-            Expanded(
-              child: _buildFilterDropdown(
-                icon: Icons.calendar_month_outlined,
-                value: _selectedMonth,
-                items: _monthsList,
-                onChanged: (val) => setState(() => _selectedMonth = val!),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _buildFilterDropdown(
-                icon: Icons.calendar_today_outlined,
-                value: _selectedYear,
-                items: _yearsList,
-                onChanged: (val) => setState(() => _selectedYear = val!),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-
-        // Row 2: All Financial Years | All Staff
-        Row(
-          children: [
-            Expanded(
-              child: _buildFilterDropdown(
-                icon: Icons.bar_chart_rounded,
-                value: _selectedFinancialYear,
-                items: _financialYearsList,
-                onChanged: (val) => setState(() => _selectedFinancialYear = val!),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _buildFilterDropdown(
-                icon: Icons.person_outline_rounded,
-                value: _selectedStaff,
-                items: _staffList,
-                onChanged: (val) => setState(() => _selectedStaff = val!),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-
-        // Row 3: Choose Date | All Order Types
-        Row(
-          children: [
-            Expanded(
-              child: InkWell(
-                onTap: _pickDate,
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  height: 42,
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFFCBD5E1)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.calendar_today_outlined,
-                        size: 16,
-                        color: Color(0xFF64748B),
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          _selectedDate != null
-                              ? _formatDate(_selectedDate!)
-                              : 'Choose Date',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 14.sp,
-                            color: const Color(0xFF0F172A),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                      if (_selectedDate != null)
-                        InkWell(
-                          onTap: () => setState(() => _selectedDate = null),
-                          child: const Icon(
-                            Icons.close_rounded,
-                            size: 16,
-                            color: Color(0xFF94A3B8),
-                          ),
-                        )
-                      else
-                        const Icon(
-                          Icons.keyboard_arrow_down_rounded,
-                          size: 18,
-                          color: Color(0xFF64748B),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _buildFilterDropdown(
-                icon: Icons.format_list_bulleted_rounded,
-                value: _selectedOrderType,
-                items: _orderTypesList,
-                onChanged: (val) => setState(() => _selectedOrderType = val!),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-
-        // Row 4: All Statuses | Latest First
-        Row(
-          children: [
-            Expanded(
-              child: _buildFilterDropdown(
-                icon: Icons.local_offer_outlined,
-                value: _selectedStatus,
-                items: _statusList,
-                onChanged: (val) => setState(() => _selectedStatus = val!),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _buildFilterDropdown(
-                icon: Icons.swap_vert_rounded,
-                value: _selectedSort,
-                items: _sortList,
-                onChanged: (val) => setState(() => _selectedSort = val!),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFilterDropdown({
-    required IconData icon,
-    required String value,
-    required List<String> items,
-    required ValueChanged<String?> onChanged,
-  }) {
-    return Container(
-      height: 42,
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFCBD5E1)),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 16, color: const Color(0xFF64748B)),
-          const SizedBox(width: 6),
-          Expanded(
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: value,
-                isExpanded: true,
-                icon: const Icon(
-                  Icons.keyboard_arrow_down_rounded,
-                  size: 18,
-                  color: Color(0xFF64748B),
-                ),
-                style: TextStyle(
-                  fontSize: 14.sp,
-                  color: const Color(0xFF0F172A),
-                  fontWeight: FontWeight.w500,
-                ),
-                items: items.map((item) {
-                  return DropdownMenuItem<String>(
-                    value: item,
-                    child: Text(
-                      item,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 14.sp,
-                        color: const Color(0xFF0F172A),
-                      ),
-                    ),
-                  );
-                }).toList(),
-                onChanged: onChanged,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // --- 5. Summary Statistics & Export Buttons Row ---
-  Widget _buildSummaryAndExportRow() {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          // Total Pending
-          _buildStatCard(
-            label: 'Total Pending',
-            amount: _formatCurrency(_totalPendingAmount),
-            bgColor: const Color(0xFFFEF2F2),
-            borderColor: const Color(0xFFFECACA),
-            textColor: const Color(0xFFEF4444),
-          ),
-          const SizedBox(width: 8),
-
-          // Total Paid
-          _buildStatCard(
-            label: 'Total Paid',
-            amount: _formatCurrency(_totalPaidAmount),
-            bgColor: const Color(0xFFF0FDF4),
-            borderColor: const Color(0xFFBBF7D0),
-            textColor: const Color(0xFF16A34A),
-          ),
-          const SizedBox(width: 8),
-
-          // Grand Total
-          _buildStatCard(
-            label: 'Total',
-            amount: _formatCurrency(_totalAmount),
-            bgColor: const Color(0xFFEFF6FF),
-            borderColor: const Color(0xFFBFDBFE),
-            textColor: const Color(0xFF2563EB),
-          ),
-          const SizedBox(width: 8),
-
-          // Excel Export Button
-          Material(
-            color: const Color(0xFF059669),
-            borderRadius: BorderRadius.circular(8),
-            child: InkWell(
-              onTap: () {
-                Get.snackbar(
-                  'Excel Exported',
-                  'Sales & Bills data exported to Excel successfully',
-                  snackPosition: SnackPosition.BOTTOM,
-                  backgroundColor: const Color(0xFF059669),
-                  colorText: Colors.white,
-                  margin: const EdgeInsets.all(12),
-                );
-              },
-              borderRadius: BorderRadius.circular(8),
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.table_chart_outlined,
-                      color: Colors.white,
-                      size: 16,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Excel',
-                      style: TextStyle(
-                        fontSize: 14.sp,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-
-          // PDF Export Button
-          Material(
-            color: const Color(0xFFDC2626),
-            borderRadius: BorderRadius.circular(8),
-            child: InkWell(
-              onTap: () {
-                Get.snackbar(
-                  'PDF Generated',
-                  'Sales & Bills summary PDF generated successfully',
-                  snackPosition: SnackPosition.BOTTOM,
-                  backgroundColor: const Color(0xFFDC2626),
-                  colorText: Colors.white,
-                  margin: const EdgeInsets.all(12),
-                );
-              },
-              borderRadius: BorderRadius.circular(8),
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.picture_as_pdf_outlined,
-                      color: Colors.white,
-                      size: 16,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'PDF',
-                      style: TextStyle(
-                        fontSize: 14.sp,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatCard({
-    required String label,
-    required String amount,
-    required Color bgColor,
-    required Color borderColor,
-    required Color textColor,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: borderColor),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 14.sp,
-              fontWeight: FontWeight.w500,
-              color: textColor.withValues(alpha: 0.85),
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            amount,
-            style: TextStyle(
-              fontSize: 15.sp,
-              fontWeight: FontWeight.w800,
-              color: textColor,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // --- 6. Sales & Bills Cards List ---
+  // --- 4. Bills List View ---
   Widget _buildBillsList() {
-    // Loading skeleton
     if (_isLoading) {
       return Column(
-        children: List.generate(5, (i) => _buildSkeletonCard()),
+        children: List.generate(4, (i) => _buildSkeletonCard()),
       );
     }
 
-    // Error state
     if (_hasError) {
       return Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 16),
+        padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFFEE2E2)),
         ),
         child: Column(
           children: [
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: const BoxDecoration(
-                color: Color(0xFFFEF2F2),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.wifi_off_rounded,
-                color: Color(0xFFEF4444),
-                size: 32,
-              ),
-            ),
-            const SizedBox(height: 12),
+            const Icon(Icons.error_outline_rounded, color: Color(0xFFEF4444),
+                size: 36),
+            const SizedBox(height: 10),
             Text(
-              'Failed to load orders',
-              style: TextStyle(
-                fontSize: 15.sp,
-                fontWeight: FontWeight.w700,
-                color: const Color(0xFF0F172A),
-              ),
+              'Failed to load bills',
+              style: TextStyle(fontSize: 14.5.sp,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF0F172A)),
             ),
             const SizedBox(height: 4),
             Text(
               _errorMessage,
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 14.sp,
-                color: const Color(0xFF64748B),
-              ),
+                  fontSize: 12.5.sp, color: const Color(0xFF64748B)),
             ),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
+            const SizedBox(height: 14),
+            ElevatedButton(
               onPressed: () => _fetchOrders(tab: _selectedGstTab, page: 1, isRefresh: true),
-              icon: const Icon(Icons.refresh_rounded, size: 16),
-              label: const Text('Retry'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFFF6B2C),
                 foregroundColor: Colors.white,
-                elevation: 0,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
+                    borderRadius: BorderRadius.circular(8)),
               ),
+              child: const Text('Retry'),
             ),
           ],
         ),
@@ -1685,10 +802,10 @@ class _AllSalesScreenState extends State<AllSalesScreen> {
     if (orders.isEmpty) {
       return Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 16),
+        padding: const EdgeInsets.symmetric(vertical: 50, horizontal: 20),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(color: const Color(0xFFE2E8F0)),
         ),
         child: Column(
@@ -1700,27 +817,20 @@ class _AllSalesScreenState extends State<AllSalesScreen> {
                 shape: BoxShape.circle,
               ),
               child: const Icon(
-                Icons.search_off_rounded,
-                color: Color(0xFFFF6B2C),
-                size: 32,
-              ),
+                  Icons.receipt_outlined, color: Color(0xFFFF6B2C), size: 32),
             ),
             const SizedBox(height: 12),
             Text(
-              'No bills found matching filters',
-              style: TextStyle(
-                fontSize: 15.sp,
-                fontWeight: FontWeight.w700,
-                color: const Color(0xFF0F172A),
-              ),
+              'No bills found',
+              style: TextStyle(fontSize: 14.5.sp,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF0F172A)),
             ),
             const SizedBox(height: 4),
             Text(
-              'Try changing search keyword or filter options',
+              'No bills available in $_selectedGstTab',
               style: TextStyle(
-                fontSize: 14.sp,
-                color: const Color(0xFF64748B),
-              ),
+                  fontSize: 12.5.sp, color: const Color(0xFF64748B)),
             ),
           ],
         ),
@@ -1728,376 +838,317 @@ class _AllSalesScreenState extends State<AllSalesScreen> {
     }
 
     return Column(
-      children: orders.map((order) => _buildOrderCard(order)).toList(),
+      children: orders.map((order) => _buildModernOrderCard(order)).toList(),
     );
   }
 
-  /// Icon colour helper based on payment status
-  _OrderIconStyle _iconStyleForOrder(OrderItemModel order) {
-    if (order.isPaid) {
-      return _OrderIconStyle(
-        bg: const Color(0xFFF0FDF4),
-        icon: const Color(0xFF16A34A),
-      );
-    }
-    if (order.displayPaymentStatus == 'Partially Paid') {
-      return _OrderIconStyle(
-        bg: const Color(0xFFEFF6FF),
-        icon: const Color(0xFF2563EB),
-      );
-    }
-    return _OrderIconStyle(
-      bg: const Color(0xFFFFF7ED),
-      icon: const Color(0xFFEA580C),
-    );
-  }
+  // --- 5. Redesigned Premium Bill Card ---
+  Widget _buildModernOrderCard(OrderItemModel order) {
+    final isPaid = order.isPaid;
+    final isGst = _selectedGstTab == 'With GST Bills';
 
-  Widget _buildOrderCard(OrderItemModel order) {
-    final style = _iconStyleForOrder(order);
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Color(0x04000000),
-            blurRadius: 6,
-            offset: Offset(0, 2),
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          // Left Icon Badge
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: style.bg,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              Icons.description_outlined,
-              color: style.icon,
-              size: 22,
-            ),
-          ),
-          const SizedBox(width: 10),
-
-          // Order No, Date, Customer Name
-          Expanded(
-            flex: 12,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: () {
+            Get.to(() =>
+                SalesDetailScreen(orderId: order.id, initialOrder: order));
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  order.orderNumber,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 15.sp,
-                    fontWeight: FontWeight.w800,
-                    color: const Color(0xFF0F172A),
-                  ),
-                ),
-                const SizedBox(height: 3),
+                // Top Header Row
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Icon(
-                      Icons.calendar_today_outlined,
-                      size: 13,
-                      color: Color(0xFF64748B),
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        _formatDate(order.effectiveDate),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 14.sp,
-                          color: const Color(0xFF64748B),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: isGst
+                                ? const Color(0xFFEFF6FF)
+                                : const Color(0xFFFFF7ED),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            Icons.receipt_long_rounded,
+                            color: isGst
+                                ? const Color(0xFF2563EB)
+                                : const Color(0xFFFF6B2C),
+                            size: 18,
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 10),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              order.orderNumber,
+                              style: TextStyle(
+                                fontSize: 14.5.sp,
+                                fontWeight: FontWeight.w800,
+                                color: const Color(0xFF0F172A),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              _formatDate(order.effectiveDate),
+                              style: TextStyle(
+                                fontSize: 12.sp,
+                                color: const Color(0xFF64748B),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+
+                    // Amount + Action Menu
+                    Row(
+                      children: [
+                        Text(
+                          _formatCurrency(order.totalAmount),
+                          style: TextStyle(
+                            fontSize: 15.sp,
+                            fontWeight: FontWeight.w800,
+                            color: const Color(0xFF0F172A),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        IconButton(
+                          icon: const Icon(
+                              Icons.more_vert_rounded, color: Color(0xFF94A3B8),
+                              size: 20),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          onPressed: () => _showBillActionSheet(order),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-                const SizedBox(height: 2),
+
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 10),
+                  child: Divider(height: 1, color: Color(0xFFF1F5F9)),
+                ),
+
+                // Customer & Staff details
                 Row(
                   children: [
-                    const Icon(
-                      Icons.person_outline_rounded,
-                      size: 14,
-                      color: Color(0xFF64748B),
-                    ),
-                    const SizedBox(width: 4),
                     Expanded(
-                      child: Text(
-                        order.customerName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 14.sp,
-                          color: const Color(0xFF475569),
-                          fontWeight: FontWeight.w500,
-                        ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.person_outline_rounded, size: 15,
+                              color: Color(0xFF64748B)),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              order.customerName.isNotEmpty
+                                  ? order.customerName
+                                  : 'Walk-in Customer',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 13.sp,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF334155),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
+                    ),
+                    if (order.effectiveStaffName.isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      Row(
+                        children: [
+                          const Icon(Icons.badge_outlined, size: 14,
+                              color: Color(0xFF94A3B8)),
+                          const SizedBox(width: 4),
+                          Text(
+                            order.effectiveStaffName,
+                            style: TextStyle(fontSize: 12.sp,
+                                color: const Color(0xFF64748B)),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 10),
+
+                // Badges Row
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // Order Type
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.local_shipping_outlined, size: 13,
+                              color: Color(0xFF64748B)),
+                          const SizedBox(width: 4),
+                          Text(
+                            order.displayOrderType,
+                            style: TextStyle(
+                              fontSize: 11.5.sp,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF475569),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Status Badges
+                    Row(
+                      children: [
+                        // GST tag
+                        Container(
+                          margin: const EdgeInsets.only(right: 6),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: isGst
+                                ? const Color(0xFFEFF6FF)
+                                : const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(
+                              color: isGst
+                                  ? const Color(0xFFBFDBFE)
+                                  : const Color(0xFFE2E8F0),
+                            ),
+                          ),
+                          child: Text(
+                            isGst ? 'GST' : 'Non-GST',
+                            style: TextStyle(
+                              fontSize: 10.5.sp,
+                              fontWeight: FontWeight.w700,
+                              color: isGst
+                                  ? const Color(0xFF2563EB)
+                                  : const Color(0xFF64748B),
+                            ),
+                          ),
+                        ),
+
+                        // Payment Status
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: isPaid
+                                ? const Color(0xFFF0FDF4)
+                                : const Color(0xFFFEF2F2),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(
+                              color: isPaid
+                                  ? const Color(0xFFBBF7D0)
+                                  : const Color(0xFFFECACA),
+                            ),
+                          ),
+                          child: Text(
+                            isPaid ? 'PAID' : 'UNPAID',
+                            style: TextStyle(
+                              fontSize: 10.5.sp,
+                              fontWeight: FontWeight.w800,
+                              color: isPaid
+                                  ? const Color(0xFF16A34A)
+                                  : const Color(0xFFEF4444),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 8),
-
-          // Status Badges
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              _buildStatusBadge(order.displayPaymentStatus),
-              const SizedBox(height: 4),
-              _buildPaymentBadge(order.isPaid ? 'Paid' : 'Unpaid'),
-            ],
-          ),
-          const SizedBox(width: 10),
-
-          // Total, Amount, Order Type, Staff
-          Expanded(
-            flex: 11,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Total',
-                  style: TextStyle(
-                    fontSize: 14.sp,
-                    color: const Color(0xFF64748B),
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
-                Text(
-                  _formatCurrency(order.totalAmount),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 15.sp,
-                    fontWeight: FontWeight.w800,
-                    color: const Color(0xFF0F172A),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.local_shipping_outlined,
-                      size: 13,
-                      color: Color(0xFF64748B),
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        order.displayOrderType,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 14.sp,
-                          color: const Color(0xFF64748B),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 2),
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.person_outline_rounded,
-                      size: 13,
-                      color: Color(0xFF64748B),
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        order.effectiveStaffName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 14.sp,
-                          color: const Color(0xFF64748B),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 4),
-
-          // 3-Dots Action Button
-          Container(
-            width: 32,
-            height: 38,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            child: IconButton(
-              icon: const Icon(
-                Icons.more_vert_rounded,
-                color: Color(0xFF64748B),
-                size: 18,
-              ),
-              onPressed: () => _showBillActionSheet(order),
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 
+  // --- Skeleton Loading Card ---
   Widget _buildSkeletonCard() {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
-      child: Row(
+      child: Column(
         children: [
-          _shimmerBox(44, 44, radius: 10),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _shimmerBox(12, 100),
-                const SizedBox(height: 6),
-                _shimmerBox(10, 140),
-                const SizedBox(height: 6),
-                _shimmerBox(10, 120),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Column(
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _shimmerBox(22, 64, radius: 4),
-              const SizedBox(height: 4),
-              _shimmerBox(22, 64, radius: 4),
+              Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE2E8F0),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(width: 90,
+                          height: 12,
+                          color: const Color(0xFFE2E8F0)),
+                      const SizedBox(height: 6),
+                      Container(width: 60,
+                          height: 10,
+                          color: const Color(0xFFE2E8F0)),
+                    ],
+                  ),
+                ],
+              ),
+              Container(width: 70, height: 16, color: const Color(0xFFE2E8F0)),
             ],
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _shimmerBox(10, 40),
-                const SizedBox(height: 4),
-                _shimmerBox(12, 90),
-                const SizedBox(height: 6),
-                _shimmerBox(10, 80),
-                const SizedBox(height: 6),
-                _shimmerBox(10, 70),
-              ],
-            ),
+          const SizedBox(height: 14),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(width: 110, height: 10, color: const Color(0xFFE2E8F0)),
+              Container(width: 50, height: 18, color: const Color(0xFFE2E8F0)),
+            ],
           ),
         ],
       ),
     );
   }
-
-  Widget _shimmerBox(double height, double width, {double radius = 6}) {
-    return Container(
-      height: height,
-      width: width,
-      decoration: BoxDecoration(
-        color: const Color(0xFFE2E8F0),
-        borderRadius: BorderRadius.circular(radius),
-      ),
-    );
-  }
-
-  Widget _buildStatusBadge(String status) {
-    Color bg;
-    Color text;
-
-    switch (status) {
-      case 'Paid':
-        bg = const Color(0xFFF0FDF4);
-        text = const Color(0xFF16A34A);
-        break;
-      case 'Partially Paid':
-        bg = const Color(0xFFEFF6FF);
-        text = const Color(0xFF2563EB);
-        break;
-      case 'Delivered':
-        bg = const Color(0xFFEFF6FF);
-        text = const Color(0xFF2563EB);
-        break;
-      case 'Pending':
-      default:
-        bg = const Color(0xFFFFF7ED);
-        text = const Color(0xFFEA580C);
-        break;
-    }
-
-    return Container(
-      width: 80,
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(
-        status,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          fontSize: 11.sp,
-          fontWeight: FontWeight.w700,
-          color: text,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPaymentBadge(String status) {
-    final isPaid = status == 'Paid';
-    return Container(
-      width: 80,
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: isPaid ? const Color(0xFFF0FDF4) : const Color(0xFFFEF2F2),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(
-        status,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          fontSize: 11.sp,
-          fontWeight: FontWeight.w700,
-          color: isPaid ? const Color(0xFF16A34A) : const Color(0xFFEF4444),
-        ),
-      ),
-    );
-  }
-}
-
-/// Small helper to carry icon palette for an order card
-class _OrderIconStyle {
-  final Color bg;
-  final Color icon;
-  const _OrderIconStyle({required this.bg, required this.icon});
 }

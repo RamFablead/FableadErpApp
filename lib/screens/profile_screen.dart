@@ -29,7 +29,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   final ProfileController _controller = Get.put(ProfileController());
 
-  bool _isDarkMode = true; // Default to Dark Mode theme
+  bool _isDarkMode = false; // Default to Dark Mode theme
 
   late TextEditingController _nameController;
   late TextEditingController _emailController;

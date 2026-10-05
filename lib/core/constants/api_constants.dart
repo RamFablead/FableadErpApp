@@ -15,6 +15,8 @@ class ApiConstants {
   static const String getOrdersEndpoint = '/api/get_orders';
   static const String orderSaleEndpoint = '/api/order_sale';
   static String deleteOrderEndpoint(dynamic orderId) => '/api/delete/$orderId';
+  static String getSalesByIdEndpoint(dynamic id) => '/api/getsalseById/$id';
+  static const String dashboardEndpoint = '/api/dashboard-api';
   
   // Product & Catalog Endpoints
   static const String getAllBrands = '/api/getAllBrand';

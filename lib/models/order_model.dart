@@ -1,3 +1,5 @@
+import 'product_model.dart';
+
 class OrderListResponseModel {
   final bool status;
   final String message;
@@ -550,5 +552,345 @@ class DeleteOrderResponseModel {
       'status': status,
       'message': message,
     };
+  }
+}
+
+class SalesDetailResponseModel {
+  final bool status;
+  final SalesDetailHeaderModel? sales;
+  final List<SalesDetailItemModel> orderItems;
+  final SalesDetailCompanyModel? companyInfo;
+  final String currencySymbol;
+  final String currencyPosition;
+
+  SalesDetailResponseModel({
+    required this.status,
+    this.sales,
+    this.orderItems = const [],
+    this.companyInfo,
+    this.currencySymbol = '₹',
+    this.currencyPosition = 'left',
+  });
+
+  factory SalesDetailResponseModel.fromJson(Map<String, dynamic> json) {
+    SalesDetailHeaderModel? salesHeader;
+    if (json['sales'] is Map<String, dynamic>) {
+      salesHeader = SalesDetailHeaderModel.fromJson(json['sales']);
+    }
+
+    List<SalesDetailItemModel> items = [];
+    final rawItems = json['order_items'] ?? json['sales']?['order_items'];
+    if (rawItems is List) {
+      items = rawItems
+          .whereType<Map<String, dynamic>>()
+          .map((i) => SalesDetailItemModel.fromJson(i))
+          .toList();
+    }
+
+    SalesDetailCompanyModel? company;
+    if (json['company_info'] is Map<String, dynamic>) {
+      company = SalesDetailCompanyModel.fromJson(json['company_info']);
+    }
+
+    return SalesDetailResponseModel(
+      status: json['status'] == true,
+      sales: salesHeader,
+      orderItems: items,
+      companyInfo: company,
+      currencySymbol: json['currency_symbol']?.toString() ?? '₹',
+      currencyPosition: json['currency_position']?.toString() ?? 'left',
+    );
+  }
+}
+
+class SalesDetailCompanyModel {
+  final int? id;
+  final String? name;
+  final String? email;
+  final String? phone;
+  final String? gstNum;
+  final String? cinNo;
+  final String? address;
+  final String? bankName;
+  final String? branch;
+  final String? acNo;
+  final String? ifscCode;
+  final String? logoUrl;
+  final String? qrCodeUrl;
+
+  SalesDetailCompanyModel({
+    this.id,
+    this.name,
+    this.email,
+    this.phone,
+    this.gstNum,
+    this.cinNo,
+    this.address,
+    this.bankName,
+    this.branch,
+    this.acNo,
+    this.ifscCode,
+    this.logoUrl,
+    this.qrCodeUrl,
+  });
+
+  factory SalesDetailCompanyModel.fromJson(Map<String, dynamic> json) {
+    return SalesDetailCompanyModel(
+      id: json['id'] is int
+          ? json['id']
+          : int.tryParse(json['id']?.toString() ?? ''),
+      name: json['name']?.toString(),
+      email: json['email']?.toString(),
+      phone: json['phone']?.toString(),
+      gstNum: json['gst_num']?.toString(),
+      cinNo: json['cin_no']?.toString(),
+      address: json['address']?.toString(),
+      bankName: json['bank_name']?.toString(),
+      branch: json['branch']?.toString(),
+      acNo: json['ac_no']?.toString(),
+      ifscCode: json['ifsc_code']?.toString(),
+      logoUrl: json['logo_url']?.toString(),
+      qrCodeUrl: json['qr_code_url']?.toString(),
+    );
+  }
+}
+
+class SalesDetailHeaderModel {
+  final int id;
+  final String orderNumber;
+  final String? quotationStatus;
+  final String? rentalStatus;
+  final String? paymentMethod;
+  final String? paymentStatus;
+  final String? deliveryStatus;
+  final String? gstOption;
+  final String? orderType;
+  final double discount;
+  final double discountPercentage;
+  final double discountAmount;
+  final double shipping;
+  final double tdsPercentage;
+  final double tdsAmount;
+  final double totalAmount;
+  final double depositAmount;
+  final double remainingAmount;
+  final double paidAmount;
+  final double pendingAmount;
+  final String? remarks;
+  final String? createdAt;
+  final int? userId;
+  final String? userName;
+  final String? userPhone;
+  final String? userEmail;
+  final String? userGstNumber;
+  final String? userPanNumber;
+  final SalesDetailUserModel? user;
+  final List<SalesDetailItemModel> orderItems;
+
+  SalesDetailHeaderModel({
+    required this.id,
+    required this.orderNumber,
+    this.quotationStatus,
+    this.rentalStatus,
+    this.paymentMethod,
+    this.paymentStatus,
+    this.deliveryStatus,
+    this.gstOption,
+    this.orderType,
+    this.discount = 0.0,
+    this.discountPercentage = 0.0,
+    this.discountAmount = 0.0,
+    this.shipping = 0.0,
+    this.tdsPercentage = 0.0,
+    this.tdsAmount = 0.0,
+    this.totalAmount = 0.0,
+    this.depositAmount = 0.0,
+    this.remainingAmount = 0.0,
+    this.paidAmount = 0.0,
+    this.pendingAmount = 0.0,
+    this.remarks,
+    this.createdAt,
+    this.userId,
+    this.userName,
+    this.userPhone,
+    this.userEmail,
+    this.userGstNumber,
+    this.userPanNumber,
+    this.user,
+    this.orderItems = const [],
+  });
+
+  factory SalesDetailHeaderModel.fromJson(Map<String, dynamic> json) {
+    List<SalesDetailItemModel> items = [];
+    if (json['order_items'] is List) {
+      items = (json['order_items'] as List)
+          .whereType<Map<String, dynamic>>()
+          .map((i) => SalesDetailItemModel.fromJson(i))
+          .toList();
+    }
+
+    SalesDetailUserModel? userModel;
+    if (json['user'] is Map<String, dynamic>) {
+      userModel = SalesDetailUserModel.fromJson(json['user']);
+    }
+
+    return SalesDetailHeaderModel(
+      id: json['id'] is int
+          ? json['id']
+          : int.tryParse(json['id']?.toString() ?? '0') ?? 0,
+      orderNumber: json['order_number']?.toString() ?? '',
+      quotationStatus: json['quotation_status']?.toString(),
+      rentalStatus: json['rental_status']?.toString(),
+      paymentMethod: json['payment_method']?.toString(),
+      paymentStatus: json['payment_status']?.toString(),
+      deliveryStatus: json['delivery_status']?.toString(),
+      gstOption: json['gst_option']?.toString(),
+      orderType: json['order_type']?.toString(),
+      discount: double.tryParse(json['discount']?.toString() ?? '0') ?? 0.0,
+      discountPercentage: double.tryParse(json['discount_percentage']?.toString() ?? '0') ?? 0.0,
+      discountAmount: double.tryParse(json['discount_amount']?.toString() ?? '0') ?? 0.0,
+      shipping: double.tryParse(json['shipping']?.toString() ?? '0') ?? 0.0,
+      tdsPercentage: double.tryParse(json['tds_percentage']?.toString() ?? '0') ?? 0.0,
+      tdsAmount: double.tryParse(json['tds_amount']?.toString() ?? '0') ?? 0.0,
+      totalAmount: double.tryParse(json['total_amount']?.toString() ?? '0') ?? 0.0,
+      depositAmount: double.tryParse(json['deposit_amount']?.toString() ?? '0') ?? 0.0,
+      remainingAmount: double.tryParse(json['remaining_amount']?.toString() ?? '0') ?? 0.0,
+      paidAmount: double.tryParse(json['paid_amount']?.toString() ?? '0') ?? 0.0,
+      pendingAmount: double.tryParse(json['pending_amount']?.toString() ?? '0') ?? 0.0,
+      remarks: json['remarks']?.toString(),
+      createdAt: json['created_at']?.toString(),
+      userId: json['user_id'] is int
+          ? json['user_id']
+          : int.tryParse(json['user_id']?.toString() ?? ''),
+      userName: json['user_name']?.toString() ?? userModel?.name,
+      userPhone: json['user_phone']?.toString() ?? userModel?.phone,
+      userEmail: userModel?.email,
+      userGstNumber: json['user_gst_number']?.toString() ?? userModel?.gstNumber,
+      userPanNumber: json['user_pan_number']?.toString() ?? userModel?.panNumber,
+      user: userModel,
+      orderItems: items,
+    );
+  }
+}
+
+class SalesDetailUserModel {
+  final int id;
+  final String name;
+  final String? phone;
+  final String? email;
+  final String? gstNumber;
+  final String? panNumber;
+  final String? profileImageUrl;
+
+  SalesDetailUserModel({
+    required this.id,
+    required this.name,
+    this.phone,
+    this.email,
+    this.gstNumber,
+    this.panNumber,
+    this.profileImageUrl,
+  });
+
+  factory SalesDetailUserModel.fromJson(Map<String, dynamic> json) {
+    return SalesDetailUserModel(
+      id: json['id'] is int
+          ? json['id']
+          : int.tryParse(json['id']?.toString() ?? '0') ?? 0,
+      name: json['name']?.toString() ?? '',
+      phone: json['phone']?.toString(),
+      email: json['email']?.toString(),
+      gstNumber: json['gst_number']?.toString(),
+      panNumber: json['pan_number']?.toString(),
+      profileImageUrl: json['profile_image_url']?.toString(),
+    );
+  }
+}
+
+class SalesDetailItemModel {
+  final int id;
+  final int? productId;
+  final String productName;
+  final double price;
+  final double quantity;
+  final double discountPercentage;
+  final double discountAmount;
+  final double productGstTotal;
+  final double totalAmount;
+  final String? description;
+  final String? date;
+  final ProductItemModel? product;
+  final List<SalesDetailTaxModel> productGstDetails;
+
+  SalesDetailItemModel({
+    required this.id,
+    this.productId,
+    required this.productName,
+    this.price = 0.0,
+    this.quantity = 1.0,
+    this.discountPercentage = 0.0,
+    this.discountAmount = 0.0,
+    this.productGstTotal = 0.0,
+    this.totalAmount = 0.0,
+    this.description,
+    this.date,
+    this.product,
+    this.productGstDetails = const [],
+  });
+
+  factory SalesDetailItemModel.fromJson(Map<String, dynamic> json) {
+    ProductItemModel? prod;
+    if (json['product'] is Map<String, dynamic>) {
+      prod = ProductItemModel.fromJson(json['product']);
+    }
+
+    List<SalesDetailTaxModel> taxes = [];
+    final rawTaxes = json['product_gst_details'] ?? json['product_tax'];
+    if (rawTaxes is List) {
+      taxes = rawTaxes
+          .whereType<Map<String, dynamic>>()
+          .map((t) => SalesDetailTaxModel.fromJson(t))
+          .toList();
+    }
+
+    return SalesDetailItemModel(
+      id: json['id'] is int
+          ? json['id']
+          : int.tryParse(json['id']?.toString() ?? '0') ?? 0,
+      productId: json['product_id'] is int
+          ? json['product_id']
+          : (prod?.id ?? int.tryParse(json['product_id']?.toString() ?? '')),
+      productName: json['product_name']?.toString() ?? (prod?.name ?? ''),
+      price: double.tryParse(json['price']?.toString() ?? '0') ?? (prod?.numericPrice ?? 0.0),
+      quantity: double.tryParse(json['quantity']?.toString() ?? '1') ?? 1.0,
+      discountPercentage: double.tryParse(json['discount_percentage']?.toString() ?? '0') ?? 0.0,
+      discountAmount: double.tryParse(json['discount_amount']?.toString() ?? '0') ?? 0.0,
+      productGstTotal: double.tryParse(json['product_gst_total']?.toString() ?? '0') ?? 0.0,
+      totalAmount: double.tryParse(json['total_amount']?.toString() ?? '0') ?? 0.0,
+      description: json['description']?.toString(),
+      date: json['date']?.toString(),
+      product: prod,
+      productGstDetails: taxes,
+    );
+  }
+}
+
+class SalesDetailTaxModel {
+  final String taxName;
+  final double taxRate;
+  final double taxAmount;
+
+  SalesDetailTaxModel({
+    required this.taxName,
+    required this.taxRate,
+    required this.taxAmount,
+  });
+
+  factory SalesDetailTaxModel.fromJson(Map<String, dynamic> json) {
+    return SalesDetailTaxModel(
+      taxName: json['tax_name']?.toString() ?? '',
+      taxRate: double.tryParse(json['tax_rate']?.toString() ?? '0') ?? 0.0,
+      taxAmount: double.tryParse(json['tax_amount']?.toString() ?? '0') ?? 0.0,
+    );
   }
 }

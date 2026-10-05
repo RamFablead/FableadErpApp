@@ -162,4 +162,53 @@ class OrderService {
       throw ApiException(message: 'Failed to delete order: ${e.toString()}');
     }
   }
+
+  /// Fetch sales order details by ID via GET /api/getsalseById/{id}
+  Future<SalesDetailResponseModel> getSalesById(dynamic id) async {
+    try {
+      final endpoint = ApiConstants.getSalesByIdEndpoint(id);
+      final fullUrl = '${ApiConstants.baseUrl}$endpoint';
+
+      debugPrint(
+          '\n==================== [GET /api/getsalseById/$id REQUEST] ====================');
+      debugPrint('Endpoint: $fullUrl');
+      debugPrint('Header: Accept: application/json');
+      debugPrint('Method: GET');
+      debugPrint(
+          '==============================================================================\n');
+
+      final response = await _apiClient.get(
+        endpoint,
+        options: Options(
+          headers: {
+            'Accept': 'application/json',
+          },
+        ),
+      );
+
+      final Map<String, dynamic> responseData =
+          response.data is Map<String, dynamic>
+              ? response.data as Map<String, dynamic>
+              : (response.data is String
+                  ? jsonDecode(response.data) as Map<String, dynamic>
+                  : Map<String, dynamic>.from(response.data));
+
+      final String prettyResponse =
+          const JsonEncoder.withIndent('  ').convert(responseData);
+      debugPrint(
+          '\n==================== [GET /api/getsalseById/$id RESPONSE (${response.statusCode})] ====================');
+      debugPrint('Response Body (JSON):\n$prettyResponse');
+      debugPrint(
+          '========================================================================================\n');
+
+      return SalesDetailResponseModel.fromJson(responseData);
+    } on ApiException catch (e) {
+      debugPrint('❌ [GET /api/getsalseById/$id API EXCEPTION]: ${e.message}');
+      rethrow;
+    } catch (e, stack) {
+      debugPrint('❌ [GET /api/getsalseById/$id ERROR]: $e\n$stack');
+      throw ApiException(
+          message: 'Failed to fetch sales detail: ${e.toString()}');
+    }
+  }
 }
