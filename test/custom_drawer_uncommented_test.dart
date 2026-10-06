@@ -275,4 +275,126 @@ void main() {
     expect(find.text('Table Truncate'), findsOneWidget);
     expect(find.text('Company Profile'), findsOneWidget);
   });
+
+  testWidgets('CustomDrawer ERP nested modules smoothly toggle and display child screens', (WidgetTester tester) async {
+    await tester.pumpWidget(
+      Sizer(
+        builder: (context, orientation, deviceType) {
+          return GetMaterialApp(
+            home: Scaffold(
+              drawer: const CustomDrawer(
+                isDarkMode: false,
+                activeItem: 'ERP',
+              ),
+              body: Builder(
+                builder: (context) {
+                  return ElevatedButton(
+                    onPressed: () => Scaffold.of(context).openDrawer(),
+                    child: const Text('Open Drawer'),
+                  );
+                },
+              ),
+            ),
+          );
+        },
+      ),
+    );
+
+    await tester.tap(find.text('Open Drawer'));
+    await tester.pumpAndSettle();
+
+    // Toggle Products
+    await tester.tap(find.text('Products'));
+    await tester.pumpAndSettle();
+
+    // Verify Products sub-items appear
+    expect(find.text('All Products'), findsOneWidget);
+    expect(find.text('New Product'), findsOneWidget);
+    expect(find.text('Import Products'), findsOneWidget);
+
+    // Toggle Catalog Setup
+    await tester.tap(find.text('Catalog Setup'));
+    await tester.pumpAndSettle();
+
+    // Verify Catalog Setup sub-items appear
+    expect(find.text('All Categories'), findsOneWidget);
+    expect(find.text('New Category'), findsOneWidget);
+    expect(find.text('All Brands'), findsOneWidget);
+    expect(find.text('New Brand'), findsOneWidget);
+    expect(find.text('All Units'), findsOneWidget);
+    expect(find.text('All Labour Items'), findsOneWidget);
+
+    // Toggle Sales & Bills after scrolling it into view
+    await tester.ensureVisible(find.text('Sales & Bills'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Sales & Bills'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('All Sales & Bills'), findsOneWidget);
+    expect(find.text('New Bill'), findsOneWidget);
+    expect(find.text('New POS Bill'), findsOneWidget);
+  });
+
+  testWidgets('CustomDrawer Manufacture Product, Financers, Returns sub-modules and single Manage Inventory screen', (WidgetTester tester) async {
+    await tester.pumpWidget(
+      Sizer(
+        builder: (context, orientation, deviceType) {
+          return GetMaterialApp(
+            home: Scaffold(
+              drawer: const CustomDrawer(
+                isDarkMode: false,
+                activeItem: 'ERP',
+              ),
+              body: Builder(
+                builder: (context) {
+                  return ElevatedButton(
+                    onPressed: () => Scaffold.of(context).openDrawer(),
+                    child: const Text('Open Drawer'),
+                  );
+                },
+              ),
+            ),
+          );
+        },
+      ),
+    );
+
+    await tester.tap(find.text('Open Drawer'));
+    await tester.pumpAndSettle();
+
+    // 1. Manufacture Product
+    await tester.ensureVisible(find.text('Manufacture Product'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Manufacture Product'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('All Materials'), findsOneWidget);
+    expect(find.text('Material Inventory'), findsOneWidget);
+    expect(find.text('Bill of Materials'), findsOneWidget);
+    expect(find.text('Production'), findsOneWidget);
+
+    // 2. Financers
+    await tester.ensureVisible(find.text('Financers'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Financers'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('All Financers'), findsOneWidget);
+    expect(find.text('Import Financers'), findsOneWidget);
+
+    // 3. Manage Inventory (single item)
+    await tester.ensureVisible(find.text('Manage Inventory'));
+    await tester.pumpAndSettle();
+    expect(find.text('Manage Inventory'), findsOneWidget);
+
+    // 4. Returns
+    await tester.ensureVisible(find.text('Returns'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Returns'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Rental Return'), findsOneWidget);
+    expect(find.text('Sales Return'), findsOneWidget);
+    expect(find.text('Purchase Return'), findsOneWidget);
+  });
 }
