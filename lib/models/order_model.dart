@@ -1,4 +1,5 @@
 import 'product_model.dart';
+import '../core/constants/api_constants.dart';
 
 class OrderListResponseModel {
   final bool status;
@@ -265,6 +266,17 @@ class OrderItemModel {
   bool get isPaid => displayPaymentStatus == 'Paid';
 
   DateTime get effectiveDate => createdAt ?? DateTime.now();
+
+  String get effectiveInvoicePdfUrl {
+    if (invoicePdfUrl != null && invoicePdfUrl!.trim().isNotEmpty) {
+      final trimmed = invoicePdfUrl!.trim();
+      if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+        return trimmed;
+      }
+      return '${ApiConstants.baseUrl}$trimmed';
+    }
+    return '${ApiConstants.baseUrl}/sales/invoice/pdf/$id';
+  }
 }
 
 class OrderUserModel {
@@ -684,6 +696,7 @@ class SalesDetailHeaderModel {
   final String? userEmail;
   final String? userGstNumber;
   final String? userPanNumber;
+  final String? invoicePdfUrl;
   final SalesDetailUserModel? user;
   final List<SalesDetailItemModel> orderItems;
 
@@ -716,6 +729,7 @@ class SalesDetailHeaderModel {
     this.userEmail,
     this.userGstNumber,
     this.userPanNumber,
+    this.invoicePdfUrl,
     this.user,
     this.orderItems = const [],
   });
@@ -767,9 +781,22 @@ class SalesDetailHeaderModel {
       userEmail: userModel?.email,
       userGstNumber: json['user_gst_number']?.toString() ?? userModel?.gstNumber,
       userPanNumber: json['user_pan_number']?.toString() ?? userModel?.panNumber,
+      invoicePdfUrl: json['invoice_pdf_url']?.toString() ??
+          json['order_invoice']?.toString(),
       user: userModel,
       orderItems: items,
     );
+  }
+
+  String get effectiveInvoicePdfUrl {
+    if (invoicePdfUrl != null && invoicePdfUrl!.trim().isNotEmpty) {
+      final trimmed = invoicePdfUrl!.trim();
+      if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+        return trimmed;
+      }
+      return '${ApiConstants.baseUrl}$trimmed';
+    }
+    return '${ApiConstants.baseUrl}/sales/invoice/pdf/$id';
   }
 }
 
