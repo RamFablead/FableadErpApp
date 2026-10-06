@@ -29,7 +29,8 @@ import '../screens/sales&bills/view/all_sales_screen.dart';
 import '../screens/sales&bills/view/sales_screen.dart';
 import '../screens/profile_screen.dart';
 
-/// Clean, modern, professional ERP Side Menu Drawer matching the user's web ERP dashboard layout.
+/// Clean, modern, professional ERP Side Menu Drawer with smooth animated accordion expansions
+/// matching the user's web ERP dashboard layout.
 class CustomDrawer extends StatefulWidget {
   final bool isDarkMode;
   final String activeItem;
@@ -58,8 +59,12 @@ class _CustomDrawerState extends State<CustomDrawer> {
   // Nested expansion states inside ERP
   bool _isProductsNestedExpanded = false;
   bool _isCatalogNestedExpanded = false;
-  bool _isInventoryNestedExpanded = false;
+  bool _isSalesNestedExpanded = false;
+  bool _isPurchasesNestedExpanded = false;
+  bool _isVendorsNestedExpanded = false;
+  bool _isManufactureNestedExpanded = false;
   bool _isFinancersNestedExpanded = false;
+  bool _isReturnsNestedExpanded = false;
 
   @override
   void initState() {
@@ -90,23 +95,45 @@ class _CustomDrawerState extends State<CustomDrawer> {
       'Sale',
       'Sales',
       'All Sales',
+      'All Sales & Bills',
       'New Sale',
+      'New Bill',
+      'New POS Bill',
       'Products Delivery',
       'Delivery',
       'Purchases',
+      'All Purchases',
+      'New Purchase',
       'Vendors',
+      'All Vendors',
+      'New Vendor',
+      'Import Vendor',
       'Manufacture Product',
+      'All Materials',
+      'Material Inventory',
+      'Bill of Materials',
+      'Production',
       'Financers',
       'All Financers',
       'Import Financers',
       'Manage Inventory',
       'Inventory',
-      'Inventory List',
-      'Stock Overview',
-      'View Inventory',
       'Returns',
+      'Rental Return',
+      'Sales Return',
+      'Purchase Return',
     ].contains(item)) {
       _isErpExpanded = true;
+
+      if (const [
+        'Products',
+        'All Products',
+        'New Product',
+        'All Raw Materials',
+        'Import Products',
+      ].contains(item)) {
+        _isProductsNestedExpanded = true;
+      }
 
       if (const [
         'Catalog Setup',
@@ -122,23 +149,43 @@ class _CustomDrawerState extends State<CustomDrawer> {
       }
 
       if (const [
-        'Products',
-        'All Products',
-        'New Product',
-        'All Raw Materials',
-        'Import Products',
+        'Sales & Bills',
+        'Sale',
+        'Sales',
+        'All Sales',
+        'All Sales & Bills',
+        'New Sale',
+        'New Bill',
+        'New POS Bill',
       ].contains(item)) {
-        _isProductsNestedExpanded = true;
+        _isSalesNestedExpanded = true;
       }
 
       if (const [
-        'Manage Inventory',
-        'Inventory',
-        'Inventory List',
-        'Stock Overview',
-        'View Inventory',
+        'Purchases',
+        'All Purchases',
+        'New Purchase',
       ].contains(item)) {
-        _isInventoryNestedExpanded = true;
+        _isPurchasesNestedExpanded = true;
+      }
+
+      if (const [
+        'Vendors',
+        'All Vendors',
+        'New Vendor',
+        'Import Vendor',
+      ].contains(item)) {
+        _isVendorsNestedExpanded = true;
+      }
+
+      if (const [
+        'Manufacture Product',
+        'All Materials',
+        'Material Inventory',
+        'Bill of Materials',
+        'Production',
+      ].contains(item)) {
+        _isManufactureNestedExpanded = true;
       }
 
       if (const [
@@ -147,6 +194,15 @@ class _CustomDrawerState extends State<CustomDrawer> {
         'Import Financers',
       ].contains(item)) {
         _isFinancersNestedExpanded = true;
+      }
+
+      if (const [
+        'Returns',
+        'Rental Return',
+        'Sales Return',
+        'Purchase Return',
+      ].contains(item)) {
+        _isReturnsNestedExpanded = true;
       }
     }
 
@@ -234,11 +290,24 @@ class _CustomDrawerState extends State<CustomDrawer> {
   bool _isSubItemSelected(String title) {
     final active = widget.activeItem;
     if (active == title) return true;
-    if (title == 'Products' && (active == 'All Products' || active == 'New Product')) return true;
-    if (title == 'Catalog Setup' && (active == 'All Categories' || active == 'Categories')) return true;
-    if (title == 'Sales & Bills' && (active == 'Sale' || active == 'Sales' || active == 'All Sales')) return true;
+    if (title == 'All Products' && (active == 'Products' || active == 'All Products')) return true;
+    if (title == 'New Product' && active == 'New Product') return true;
+    if (title == 'Import Products' && active == 'Import Products') return true;
+    if (title == 'All Categories' && (active == 'All Categories' || active == 'Categories' || active == 'Catalog Setup')) return true;
+    if (title == 'All Sales & Bills' && (active == 'Sale' || active == 'Sales' || active == 'All Sales' || active == 'All Sales & Bills')) return true;
+    if (title == 'New Bill' && active == 'New Sale') return true;
     if (title == 'Products Delivery' && active == 'Delivery') return true;
-    if (title == 'Manage Inventory' && (active == 'Inventory' || active == 'Inventory List')) return true;
+    if (title == 'All Purchases' && active == 'Purchases') return true;
+    if (title == 'All Vendors' && active == 'Vendors') return true;
+    if (title == 'All Financers' && active == 'Financers') return true;
+    if (title == 'All Materials' && (active == 'All Materials' || active == 'Raw Materials')) return true;
+    if (title == 'Material Inventory' && active == 'Material Inventory') return true;
+    if (title == 'Bill of Materials' && active == 'Bill of Materials') return true;
+    if (title == 'Production' && active == 'Production') return true;
+    if (title == 'Manage Inventory' && (active == 'Manage Inventory' || active == 'Inventory' || active == 'Inventory List' || active == 'Stock Overview' || active == 'View Inventory')) return true;
+    if (title == 'Rental Return' && active == 'Rental Return') return true;
+    if (title == 'Sales Return' && active == 'Sales Return') return true;
+    if (title == 'Purchase Return' && active == 'Purchase Return') return true;
     if (title == 'Manufacture Product' && active == 'Raw Materials') return true;
     if (title == 'Company Profile' && (active == 'Profile' || active == 'View Profile' || active == 'Edit Profile')) return true;
     return false;
@@ -269,7 +338,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
           // 1. Top Brand & User Profile Header
           _buildDrawerHeader(context, headerBg, borderColor, textPrimary, textSecondary, isDark),
 
-          // 2. Navigation Items List matching the user's ERP layout
+          // 2. Navigation Items List matching user screenshots
           Expanded(
             child: ListView(
               physics: const BouncingScrollPhysics(),
@@ -310,120 +379,130 @@ class _CustomDrawerState extends State<CustomDrawer> {
                   textSecondary: textSecondary,
                   onTap: () => setState(() => _isErpExpanded = !_isErpExpanded),
                   children: [
-                    // Products
-                    _buildMenuSubItem(
+                    // Products (Expandable with smooth animation)
+                    _buildExpandableSubModule(
                       title: 'Products',
                       icon: Icons.inventory_2_outlined,
-                      destination: const ProductScreen(),
-                      nestedChildren: [
-                        _buildNestedSubItem(
+                      isExpanded: _isProductsNestedExpanded,
+                      onToggle: () => setState(() => _isProductsNestedExpanded = !_isProductsNestedExpanded),
+                      textPrimary: textPrimary,
+                      textSecondary: textSecondary,
+                      isDark: isDark,
+                      children: [
+                        _buildRadioSubItem(
                           title: 'All Products',
                           destination: const ProductScreen(),
                           textPrimary: textPrimary,
                           textSecondary: textSecondary,
+                          isDark: isDark,
                         ),
-                        _buildNestedSubItem(
+                        _buildRadioSubItem(
                           title: 'New Product',
                           destination: const AddProductScreen(),
                           textPrimary: textPrimary,
                           textSecondary: textSecondary,
+                          isDark: isDark,
                         ),
-                        _buildNestedSubItem(
-                          title: 'All Raw Materials',
-                          destination: const RawMaterialsScreen(),
-                          textPrimary: textPrimary,
-                          textSecondary: textSecondary,
-                        ),
-                        _buildNestedSubItem(
+                        _buildRadioSubItem(
                           title: 'Import Products',
                           destination: const ImportProductScreen(),
                           textPrimary: textPrimary,
                           textSecondary: textSecondary,
+                          isDark: isDark,
                         ),
                       ],
-                      isNestedExpanded: _isProductsNestedExpanded,
-                      onNestedToggle: () => setState(() => _isProductsNestedExpanded = !_isProductsNestedExpanded),
+                    ),
+
+                    // Catalog Setup (Expandable with smooth animation)
+                    _buildExpandableSubModule(
+                      title: 'Catalog Setup',
+                      icon: Icons.local_offer_outlined,
+                      isExpanded: _isCatalogNestedExpanded,
+                      onToggle: () => setState(() => _isCatalogNestedExpanded = !_isCatalogNestedExpanded),
                       textPrimary: textPrimary,
                       textSecondary: textSecondary,
                       isDark: isDark,
-                    ),
-
-                    // Catalog Setup
-                    _buildMenuSubItem(
-                      title: 'Catalog Setup',
-                      icon: Icons.local_offer_outlined,
-                      destination: const ProductCategoryScreen(),
-                      nestedChildren: [
-                        _buildNestedSubItem(
+                      children: [
+                        _buildRadioSubItem(
                           title: 'All Categories',
                           destination: const ProductCategoryScreen(),
                           textPrimary: textPrimary,
                           textSecondary: textSecondary,
+                          isDark: isDark,
                         ),
-                        _buildNestedSubItem(
+                        _buildRadioSubItem(
                           title: 'New Category',
                           destination: const AddProductCategoryScreen(),
                           textPrimary: textPrimary,
                           textSecondary: textSecondary,
+                          isDark: isDark,
                         ),
-                        _buildNestedSubItem(
+                        _buildRadioSubItem(
                           title: 'All Brands',
                           destination: const AllBrandsScreen(),
                           textPrimary: textPrimary,
                           textSecondary: textSecondary,
+                          isDark: isDark,
                         ),
-                        _buildNestedSubItem(
+                        _buildRadioSubItem(
                           title: 'New Brand',
                           destination: const AddBrandsScreen(),
                           textPrimary: textPrimary,
                           textSecondary: textSecondary,
+                          isDark: isDark,
                         ),
-                        _buildNestedSubItem(
+                        _buildRadioSubItem(
                           title: 'All Units',
                           destination: const AllUnitsScreen(),
                           textPrimary: textPrimary,
                           textSecondary: textSecondary,
+                          isDark: isDark,
                         ),
-                        _buildNestedSubItem(
+                        _buildRadioSubItem(
                           title: 'All Labour Items',
                           destination: const AllLabourItemsScreen(),
                           textPrimary: textPrimary,
                           textSecondary: textSecondary,
+                          isDark: isDark,
                         ),
                       ],
-                      isNestedExpanded: _isCatalogNestedExpanded,
-                      onNestedToggle: () => setState(() => _isCatalogNestedExpanded = !_isCatalogNestedExpanded),
+                    ),
+
+                    // Sales & Bills (Expandable with smooth animation)
+                    _buildExpandableSubModule(
+                      title: 'Sales & Bills',
+                      icon: Icons.shopping_cart_outlined,
+                      isExpanded: _isSalesNestedExpanded,
+                      onToggle: () => setState(() => _isSalesNestedExpanded = !_isSalesNestedExpanded),
                       textPrimary: textPrimary,
                       textSecondary: textSecondary,
                       isDark: isDark,
-                    ),
-
-                    // Sales & Bills
-                    _buildMenuSubItem(
-                      title: 'Sales & Bills',
-                      icon: Icons.shopping_cart_outlined,
-                      destination: const AllSalesScreen(),
-                      nestedChildren: [
-                        _buildNestedSubItem(
-                          title: 'All Sales',
+                      children: [
+                        _buildRadioSubItem(
+                          title: 'All Sales & Bills',
                           destination: const AllSalesScreen(),
                           textPrimary: textPrimary,
                           textSecondary: textSecondary,
+                          isDark: isDark,
                         ),
-                        _buildNestedSubItem(
-                          title: 'New Sale',
+                        _buildRadioSubItem(
+                          title: 'New Bill',
                           destination: const SalesScreen(),
                           textPrimary: textPrimary,
                           textSecondary: textSecondary,
+                          isDark: isDark,
+                        ),
+                        _buildRadioSubItem(
+                          title: 'New POS Bill',
+                          destination: const SalesScreen(),
+                          textPrimary: textPrimary,
+                          textSecondary: textSecondary,
+                          isDark: isDark,
                         ),
                       ],
-                      isNestedExpanded: false,
-                      textPrimary: textPrimary,
-                      textSecondary: textSecondary,
-                      isDark: isDark,
                     ),
 
-                    // Products Delivery
+                    // Products Delivery (Direct Nav Item)
                     _buildMenuSubItem(
                       title: 'Products Delivery',
                       icon: Icons.local_shipping_outlined,
@@ -433,96 +512,174 @@ class _CustomDrawerState extends State<CustomDrawer> {
                       isDark: isDark,
                     ),
 
-                    // Purchases
-                    _buildMenuSubItem(
+                    // Purchases (Expandable with smooth animation)
+                    _buildExpandableSubModule(
                       title: 'Purchases',
                       icon: Icons.description_outlined,
-                      destination: const AllSalesScreen(),
+                      isExpanded: _isPurchasesNestedExpanded,
+                      onToggle: () => setState(() => _isPurchasesNestedExpanded = !_isPurchasesNestedExpanded),
                       textPrimary: textPrimary,
                       textSecondary: textSecondary,
                       isDark: isDark,
+                      children: [
+                        _buildRadioSubItem(
+                          title: 'All Purchases',
+                          destination: const AllSalesScreen(),
+                          textPrimary: textPrimary,
+                          textSecondary: textSecondary,
+                          isDark: isDark,
+                        ),
+                        _buildRadioSubItem(
+                          title: 'New Purchase',
+                          destination: const SalesScreen(),
+                          textPrimary: textPrimary,
+                          textSecondary: textSecondary,
+                          isDark: isDark,
+                        ),
+                      ],
                     ),
 
-                    // Vendors
-                    _buildMenuSubItem(
+                    // Vendors (Expandable with smooth animation)
+                    _buildExpandableSubModule(
                       title: 'Vendors',
                       icon: Icons.handshake_outlined,
-                      destination: const FinancersScreen(),
+                      isExpanded: _isVendorsNestedExpanded,
+                      onToggle: () => setState(() => _isVendorsNestedExpanded = !_isVendorsNestedExpanded),
                       textPrimary: textPrimary,
                       textSecondary: textSecondary,
                       isDark: isDark,
+                      children: [
+                        _buildRadioSubItem(
+                          title: 'All Vendors',
+                          destination: const FinancersScreen(),
+                          textPrimary: textPrimary,
+                          textSecondary: textSecondary,
+                          isDark: isDark,
+                        ),
+                        _buildRadioSubItem(
+                          title: 'New Vendor',
+                          destination: const FinancersScreen(),
+                          textPrimary: textPrimary,
+                          textSecondary: textSecondary,
+                          isDark: isDark,
+                        ),
+                        _buildRadioSubItem(
+                          title: 'Import Vendor',
+                          destination: const ImportFinancersScreen(),
+                          textPrimary: textPrimary,
+                          textSecondary: textSecondary,
+                          isDark: isDark,
+                        ),
+                      ],
                     ),
 
-                    // Manufacture Product
-                    _buildMenuSubItem(
+                    // Manufacture Product (Expandable with smooth animation)
+                    _buildExpandableSubModule(
                       title: 'Manufacture Product',
                       icon: Icons.precision_manufacturing_outlined,
-                      destination: const RawMaterialsScreen(),
+                      isExpanded: _isManufactureNestedExpanded,
+                      onToggle: () => setState(() => _isManufactureNestedExpanded = !_isManufactureNestedExpanded),
                       textPrimary: textPrimary,
                       textSecondary: textSecondary,
                       isDark: isDark,
+                      children: [
+                        _buildRadioSubItem(
+                          title: 'All Materials',
+                          destination: const RawMaterialsScreen(),
+                          textPrimary: textPrimary,
+                          textSecondary: textSecondary,
+                          isDark: isDark,
+                        ),
+                        _buildRadioSubItem(
+                          title: 'Material Inventory',
+                          destination: const ViewInventoryScreen(),
+                          textPrimary: textPrimary,
+                          textSecondary: textSecondary,
+                          isDark: isDark,
+                        ),
+                        _buildRadioSubItem(
+                          title: 'Bill of Materials',
+                          textPrimary: textPrimary,
+                          textSecondary: textSecondary,
+                          isDark: isDark,
+                        ),
+                        _buildRadioSubItem(
+                          title: 'Production',
+                          textPrimary: textPrimary,
+                          textSecondary: textSecondary,
+                          isDark: isDark,
+                        ),
+                      ],
                     ),
 
-                    // Financers
-                    _buildMenuSubItem(
+                    // Financers (Expandable with smooth animation)
+                    _buildExpandableSubModule(
                       title: 'Financers',
                       icon: Icons.account_balance_outlined,
-                      destination: const FinancersScreen(),
-                      nestedChildren: [
-                        _buildNestedSubItem(
+                      isExpanded: _isFinancersNestedExpanded,
+                      onToggle: () => setState(() => _isFinancersNestedExpanded = !_isFinancersNestedExpanded),
+                      textPrimary: textPrimary,
+                      textSecondary: textSecondary,
+                      isDark: isDark,
+                      children: [
+                        _buildRadioSubItem(
                           title: 'All Financers',
                           destination: const FinancersScreen(),
                           textPrimary: textPrimary,
                           textSecondary: textSecondary,
+                          isDark: isDark,
                         ),
-                        _buildNestedSubItem(
+                        _buildRadioSubItem(
                           title: 'Import Financers',
                           destination: const ImportFinancersScreen(),
                           textPrimary: textPrimary,
                           textSecondary: textSecondary,
+                          isDark: isDark,
                         ),
                       ],
-                      isNestedExpanded: _isFinancersNestedExpanded,
-                      onNestedToggle: () => setState(() => _isFinancersNestedExpanded = !_isFinancersNestedExpanded),
-                      textPrimary: textPrimary,
-                      textSecondary: textSecondary,
-                      isDark: isDark,
                     ),
 
-                    // Manage Inventory
+                    // Manage Inventory (Direct Nav Item - ONLY 1 screen)
                     _buildMenuSubItem(
                       title: 'Manage Inventory',
                       icon: Icons.warehouse_outlined,
                       destination: const ManageInventoryScreen(),
-                      nestedChildren: [
-                        _buildNestedSubItem(
-                          title: 'Inventory List',
-                          destination: const ManageInventoryScreen(),
-                          textPrimary: textPrimary,
-                          textSecondary: textSecondary,
-                        ),
-                        _buildNestedSubItem(
-                          title: 'Stock Overview',
-                          destination: const ViewInventoryScreen(),
-                          textPrimary: textPrimary,
-                          textSecondary: textSecondary,
-                        ),
-                      ],
-                      isNestedExpanded: _isInventoryNestedExpanded,
-                      onNestedToggle: () => setState(() => _isInventoryNestedExpanded = !_isInventoryNestedExpanded),
                       textPrimary: textPrimary,
                       textSecondary: textSecondary,
                       isDark: isDark,
                     ),
 
-                    // Returns
-                    _buildMenuSubItem(
+                    // Returns (Expandable with smooth animation)
+                    _buildExpandableSubModule(
                       title: 'Returns',
                       icon: Icons.reply_outlined,
-                      destination: const AllSalesScreen(),
+                      isExpanded: _isReturnsNestedExpanded,
+                      onToggle: () => setState(() => _isReturnsNestedExpanded = !_isReturnsNestedExpanded),
                       textPrimary: textPrimary,
                       textSecondary: textSecondary,
                       isDark: isDark,
+                      children: [
+                        _buildRadioSubItem(
+                          title: 'Rental Return',
+                          textPrimary: textPrimary,
+                          textSecondary: textSecondary,
+                          isDark: isDark,
+                        ),
+                        _buildRadioSubItem(
+                          title: 'Sales Return',
+                          destination: const AllSalesScreen(),
+                          textPrimary: textPrimary,
+                          textSecondary: textSecondary,
+                          isDark: isDark,
+                        ),
+                        _buildRadioSubItem(
+                          title: 'Purchase Return',
+                          destination: const AllSalesScreen(),
+                          textPrimary: textPrimary,
+                          textSecondary: textSecondary,
+                          isDark: isDark,
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -593,50 +750,38 @@ class _CustomDrawerState extends State<CustomDrawer> {
                   textSecondary: textSecondary,
                   onTap: () => setState(() => _isReportsExpanded = !_isReportsExpanded),
                   children: [
-                    _buildMenuSubItem(
+                    _buildRadioSubItem(
                       title: 'Sales Report',
-                      icon: Icons.radio_button_unchecked_rounded,
-                      isRadioStyle: true,
                       textPrimary: textPrimary,
                       textSecondary: textSecondary,
                       isDark: isDark,
                     ),
-                    _buildMenuSubItem(
+                    _buildRadioSubItem(
                       title: 'Sales Pool Report',
-                      icon: Icons.radio_button_unchecked_rounded,
-                      isRadioStyle: true,
                       textPrimary: textPrimary,
                       textSecondary: textSecondary,
                       isDark: isDark,
                     ),
-                    _buildMenuSubItem(
+                    _buildRadioSubItem(
                       title: 'TDS Report',
-                      icon: Icons.radio_button_unchecked_rounded,
-                      isRadioStyle: true,
                       textPrimary: textPrimary,
                       textSecondary: textSecondary,
                       isDark: isDark,
                     ),
-                    _buildMenuSubItem(
+                    _buildRadioSubItem(
                       title: 'Purchase Report',
-                      icon: Icons.radio_button_unchecked_rounded,
-                      isRadioStyle: true,
                       textPrimary: textPrimary,
                       textSecondary: textSecondary,
                       isDark: isDark,
                     ),
-                    _buildMenuSubItem(
+                    _buildRadioSubItem(
                       title: 'Expenses Report',
-                      icon: Icons.radio_button_unchecked_rounded,
-                      isRadioStyle: true,
                       textPrimary: textPrimary,
                       textSecondary: textSecondary,
                       isDark: isDark,
                     ),
-                    _buildMenuSubItem(
+                    _buildRadioSubItem(
                       title: 'Profit & Loss Statement',
-                      icon: Icons.radio_button_unchecked_rounded,
-                      isRadioStyle: true,
                       textPrimary: textPrimary,
                       textSecondary: textSecondary,
                       isDark: isDark,
@@ -777,114 +922,86 @@ class _CustomDrawerState extends State<CustomDrawer> {
                   textSecondary: textSecondary,
                   onTap: () => setState(() => _isSettingsExpanded = !_isSettingsExpanded),
                   children: [
-                    _buildMenuSubItem(
+                    _buildRadioSubItem(
                       title: 'Plans',
-                      icon: Icons.radio_button_unchecked_rounded,
-                      isRadioStyle: true,
                       textPrimary: textPrimary,
                       textSecondary: textSecondary,
                       isDark: isDark,
                     ),
-                    _buildMenuSubItem(
+                    _buildRadioSubItem(
                       title: 'My Plan Details',
-                      icon: Icons.radio_button_unchecked_rounded,
-                      isRadioStyle: true,
                       textPrimary: textPrimary,
                       textSecondary: textSecondary,
                       isDark: isDark,
                     ),
-                    _buildMenuSubItem(
+                    _buildRadioSubItem(
                       title: 'Change Password',
-                      icon: Icons.radio_button_unchecked_rounded,
-                      isRadioStyle: true,
                       textPrimary: textPrimary,
                       textSecondary: textSecondary,
                       isDark: isDark,
                     ),
-                    _buildMenuSubItem(
+                    _buildRadioSubItem(
                       title: 'Shop Settings',
-                      icon: Icons.radio_button_unchecked_rounded,
-                      isRadioStyle: true,
                       textPrimary: textPrimary,
                       textSecondary: textSecondary,
                       isDark: isDark,
                     ),
-                    _buildMenuSubItem(
+                    _buildRadioSubItem(
                       title: 'Smtp Settings',
-                      icon: Icons.radio_button_unchecked_rounded,
-                      isRadioStyle: true,
                       textPrimary: textPrimary,
                       textSecondary: textSecondary,
                       isDark: isDark,
                     ),
-                    _buildMenuSubItem(
+                    _buildRadioSubItem(
                       title: 'WhatsApp Configuration',
-                      icon: Icons.radio_button_unchecked_rounded,
-                      isRadioStyle: true,
                       textPrimary: textPrimary,
                       textSecondary: textSecondary,
                       isDark: isDark,
                     ),
-                    _buildMenuSubItem(
+                    _buildRadioSubItem(
                       title: 'Tax Rates',
-                      icon: Icons.radio_button_unchecked_rounded,
-                      isRadioStyle: true,
                       textPrimary: textPrimary,
                       textSecondary: textSecondary,
                       isDark: isDark,
                     ),
-                    _buildMenuSubItem(
+                    _buildRadioSubItem(
                       title: 'Departments',
-                      icon: Icons.radio_button_unchecked_rounded,
-                      isRadioStyle: true,
                       textPrimary: textPrimary,
                       textSecondary: textSecondary,
                       isDark: isDark,
                     ),
-                    _buildMenuSubItem(
+                    _buildRadioSubItem(
                       title: 'Designations',
-                      icon: Icons.radio_button_unchecked_rounded,
-                      isRadioStyle: true,
                       textPrimary: textPrimary,
                       textSecondary: textSecondary,
                       isDark: isDark,
                     ),
-                    _buildMenuSubItem(
+                    _buildRadioSubItem(
                       title: 'Leave Types',
-                      icon: Icons.radio_button_unchecked_rounded,
-                      isRadioStyle: true,
                       textPrimary: textPrimary,
                       textSecondary: textSecondary,
                       isDark: isDark,
                     ),
-                    _buildMenuSubItem(
+                    _buildRadioSubItem(
                       title: 'Manage Holidays',
-                      icon: Icons.radio_button_unchecked_rounded,
-                      isRadioStyle: true,
                       textPrimary: textPrimary,
                       textSecondary: textSecondary,
                       isDark: isDark,
                     ),
-                    _buildMenuSubItem(
+                    _buildRadioSubItem(
                       title: 'Holiday Calendar',
-                      icon: Icons.radio_button_unchecked_rounded,
-                      isRadioStyle: true,
                       textPrimary: textPrimary,
                       textSecondary: textSecondary,
                       isDark: isDark,
                     ),
-                    _buildMenuSubItem(
+                    _buildRadioSubItem(
                       title: 'Table Truncate',
-                      icon: Icons.radio_button_unchecked_rounded,
-                      isRadioStyle: true,
                       textPrimary: textPrimary,
                       textSecondary: textSecondary,
                       isDark: isDark,
                     ),
-                    _buildMenuSubItem(
+                    _buildRadioSubItem(
                       title: 'Company Profile',
-                      icon: Icons.radio_button_unchecked_rounded,
-                      isRadioStyle: true,
                       destination: const ProfileScreen(),
                       textPrimary: textPrimary,
                       textSecondary: textSecondary,
@@ -1115,7 +1232,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
     );
   }
 
-  // ==================== TOP LEVEL MENU CARD (EXACT USER SCREENSHOT DESIGN) ====================
+  // ==================== TOP LEVEL MENU CARD WITH SMOOTH ANIMATED EXPANSION ====================
   Widget _buildTopLevelCard({
     required String title,
     required IconData icon,
@@ -1201,16 +1318,19 @@ class _CustomDrawerState extends State<CustomDrawer> {
                           ),
                         ),
                       ),
-                      // Trailing Chevron
+                      // Trailing Chevron with smooth animated rotation
                       if (showChevron)
                         Padding(
                           padding: EdgeInsets.only(right: 3.w),
-                          child: Icon(
-                            isExpanded
-                                ? Icons.keyboard_arrow_down_rounded
-                                : Icons.chevron_right_rounded,
-                            color: chevronColor,
-                            size: 22,
+                          child: AnimatedRotation(
+                            turns: isExpanded ? 0.25 : 0.0,
+                            duration: const Duration(milliseconds: 200),
+                            curve: Curves.easeInOut,
+                            child: Icon(
+                              Icons.chevron_right_rounded,
+                              color: chevronColor,
+                              size: 22,
+                            ),
                           ),
                         ),
                     ],
@@ -1218,177 +1338,265 @@ class _CustomDrawerState extends State<CustomDrawer> {
                 ),
               ),
             ),
-            // Expanded content if open
-            if (isExpanded && children != null && children.isNotEmpty) ...[
-              Container(
-                width: double.infinity,
-                padding: EdgeInsets.only(top: 0.4.h, bottom: 0.8.h, left: 1.w, right: 1.w),
-                decoration: BoxDecoration(
-                  color: isDark
-                      ? const Color(0xFF0F172A).withValues(alpha: 0.5)
-                      : Colors.white.withValues(alpha: 0.7),
-                  border: Border(
-                    top: BorderSide(
-                      color: isDark
-                          ? const Color(0xFF334155)
-                          : const Color(0xFFE2E8F0).withValues(alpha: 0.6),
-                      width: 1,
-                    ),
-                  ),
-                ),
-                child: Column(
-                  children: children,
-                ),
-              ),
-            ],
+
+            // Smooth Animated Expansion for Children
+            AnimatedSize(
+              duration: const Duration(milliseconds: 280),
+              curve: Curves.fastOutSlowIn,
+              alignment: Alignment.topCenter,
+              child: isExpanded && children != null && children.isNotEmpty
+                  ? Container(
+                      width: double.infinity,
+                      padding: EdgeInsets.only(top: 0.4.h, bottom: 0.8.h, left: 1.w, right: 1.w),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? const Color(0xFF0F172A).withValues(alpha: 0.5)
+                            : Colors.white.withValues(alpha: 0.7),
+                        border: Border(
+                          top: BorderSide(
+                            color: isDark
+                                ? const Color(0xFF334155)
+                                : const Color(0xFFE2E8F0).withValues(alpha: 0.6),
+                            width: 1,
+                          ),
+                        ),
+                      ),
+                      child: Column(
+                        children: children,
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            ),
           ],
         ),
       ),
     );
   }
 
-  // ==================== SUB ITEM (MATCHING USER SCREENSHOT DESIGN) ====================
-  Widget _buildMenuSubItem({
+  // ==================== EXPANDABLE SUB-MODULE (DARK NAVY PILL WHEN EXPANDED, MATCHING SCREENSHOTS) ====================
+  Widget _buildExpandableSubModule({
     required String title,
     required IconData icon,
-    Widget? destination,
-    VoidCallback? onTap,
-    List<Widget>? nestedChildren,
-    bool isNestedExpanded = false,
-    VoidCallback? onNestedToggle,
+    required bool isExpanded,
+    required VoidCallback onToggle,
+    required List<Widget> children,
     required Color textPrimary,
     required Color textSecondary,
     required bool isDark,
-    bool isRadioStyle = false,
   }) {
-    final bool isSelected = _isSubItemSelected(title);
-    final Color itemColor = isSelected
-        ? const Color(0xFFFFA043)
-        : (isDark ? const Color(0xFFF1F5F9) : const Color(0xFF334155));
-    final Color iconColor = isSelected
-        ? const Color(0xFFFFA043)
-        : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B));
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: () {
-              if (onTap != null) {
-                onTap();
-              } else if (destination != null) {
-                widget.onItemSelected?.call(title);
-                Navigator.pop(context);
-                Get.to(() => destination);
-              } else if (nestedChildren != null && onNestedToggle != null) {
-                onNestedToggle();
-              } else {
-                _showModuleSelectedSnackbar(title);
-              }
-            },
-            borderRadius: BorderRadius.circular(6),
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.85.h),
-              child: Row(
-                children: [
-                  if (isRadioStyle)
-                    Icon(
-                      isSelected
-                          ? Icons.radio_button_checked_rounded
-                          : Icons.radio_button_unchecked_rounded,
-                      size: 16,
-                      color: isSelected ? const Color(0xFFFFA043) : const Color(0xFF64748B),
-                    )
-                  else
-                    Icon(
-                      icon,
-                      size: 19,
-                      color: iconColor,
-                    ),
-                  SizedBox(width: 3.5.w),
-                  Expanded(
-                    child: Text(
-                      title,
-                      style: TextStyle(
-                        fontFamily: AppStyles.fontFamily,
-                        fontSize: 14.sp,
-                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                        color: itemColor,
+    return Container(
+      margin: EdgeInsets.symmetric(vertical: 0.25.h),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header tile: smoothly animates to Dark Navy pill (#1E2746) when expanded matching screenshots
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeInOut,
+            decoration: BoxDecoration(
+              color: isExpanded
+                  ? const Color(0xFF1E2746) // Exact dark navy pill matching user screenshots
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: onToggle,
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 3.5.w, vertical: 1.0.h),
+                  child: Row(
+                    children: [
+                      Icon(
+                        icon,
+                        size: 20,
+                        color: isExpanded
+                            ? Colors.white
+                            : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569)),
                       ),
-                    ),
+                      SizedBox(width: 3.5.w),
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: TextStyle(
+                            fontFamily: AppStyles.fontFamily,
+                            fontSize: 14.5.sp,
+                            fontWeight: isExpanded ? FontWeight.w700 : FontWeight.w600,
+                            color: isExpanded ? Colors.white : textPrimary,
+                          ),
+                        ),
+                      ),
+                      AnimatedRotation(
+                        turns: isExpanded ? 0.25 : 0.0,
+                        duration: const Duration(milliseconds: 200),
+                        curve: Curves.easeInOut,
+                        child: Icon(
+                          Icons.chevron_right_rounded,
+                          size: 19,
+                          color: isExpanded ? Colors.white70 : textSecondary,
+                        ),
+                      ),
+                    ],
                   ),
-                  if (nestedChildren != null)
-                    IconButton(
-                      visualDensity: VisualDensity.compact,
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      icon: Icon(
-                        isNestedExpanded
-                            ? Icons.keyboard_arrow_down_rounded
-                            : Icons.chevron_right_rounded,
-                        size: 18,
-                        color: textSecondary,
-                      ),
-                      onPressed: onNestedToggle,
-                    ),
-                ],
+                ),
               ),
             ),
           ),
-        ),
-        if (isNestedExpanded && nestedChildren != null) ...[
-          Padding(
-            padding: EdgeInsets.only(left: 4.w),
-            child: Column(children: nestedChildren),
+
+          // Smooth Animated Expansion for nested radio-style sub-items
+          AnimatedSize(
+            duration: const Duration(milliseconds: 260),
+            curve: Curves.fastOutSlowIn,
+            alignment: Alignment.topCenter,
+            child: isExpanded
+                ? Padding(
+                    padding: EdgeInsets.only(top: 0.4.h, bottom: 0.4.h, left: 1.5.w),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: children,
+                    ),
+                  )
+                : const SizedBox.shrink(),
           ),
         ],
-      ],
+      ),
     );
   }
 
-  // ==================== NESTED SUB ITEM (FOR ACCESSIBLE CHILD SCREENS) ====================
-  Widget _buildNestedSubItem({
+  // ==================== RADIO SUB-ITEM (MATCHING SCREENSHOT 3 FILLED BULLET + ORANGE TEXT WHEN SELECTED) ====================
+  Widget _buildRadioSubItem({
     required String title,
-    required Widget destination,
+    Widget? destination,
+    VoidCallback? onTap,
     required Color textPrimary,
     required Color textSecondary,
+    required bool isDark,
   }) {
-    final bool isSelected = widget.activeItem == title;
+    final bool isSelected = _isSubItemSelected(title);
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: () {
-          widget.onItemSelected?.call(title);
-          Navigator.pop(context);
-          Get.to(() => destination);
+          if (onTap != null) {
+            onTap();
+          } else if (destination != null) {
+            widget.onItemSelected?.call(title);
+            Navigator.pop(context);
+            Get.to(() => destination);
+          } else {
+            _showModuleSelectedSnackbar(title);
+          }
         },
         borderRadius: BorderRadius.circular(6),
         child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.65.h),
+          padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 0.85.h),
           child: Row(
             children: [
-              Icon(
-                isSelected
-                    ? Icons.radio_button_checked_rounded
-                    : Icons.radio_button_unchecked_rounded,
-                size: 14,
-                color: isSelected ? const Color(0xFFFFA043) : const Color(0xFF94A3B8),
-              ),
-              SizedBox(width: 3.w),
+              // Radio circle matching user screenshot (filled dark navy when active, outline when inactive)
+              if (isSelected)
+                Container(
+                  width: 14,
+                  height: 14,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF1E2746), // Filled dark navy bullet
+                    shape: BoxShape.circle,
+                  ),
+                )
+              else
+                Container(
+                  width: 14,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: const Color(0xFF94A3B8), // Slate outline
+                      width: 1.5,
+                    ),
+                  ),
+                ),
+              SizedBox(width: 3.5.w),
               Expanded(
                 child: Text(
                   title,
                   style: TextStyle(
                     fontFamily: AppStyles.fontFamily,
-                    fontSize: 13.5.sp,
+                    fontSize: 14.sp,
                     fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                    color: isSelected ? const Color(0xFFFFA043) : textPrimary,
+                    color: isSelected
+                        ? const Color(0xFFFFA043) // Vibrant orange text when selected matching Screenshot 3
+                        : textPrimary,
                   ),
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ==================== FLAT SUB-ITEM (FOR DIRECT NAVIGATION ITEMS) ====================
+  Widget _buildMenuSubItem({
+    required String title,
+    required IconData icon,
+    Widget? destination,
+    VoidCallback? onTap,
+    required Color textPrimary,
+    required Color textSecondary,
+    required bool isDark,
+  }) {
+    final bool isSelected = _isSubItemSelected(title);
+
+    return Container(
+      margin: EdgeInsets.symmetric(vertical: 0.25.h),
+      decoration: BoxDecoration(
+        color: isSelected
+            ? const Color(0xFF1E2746) // Dark Navy pill matching Screenshot 3 when selected
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            if (onTap != null) {
+              onTap();
+            } else if (destination != null) {
+              widget.onItemSelected?.call(title);
+              Navigator.pop(context);
+              Get.to(() => destination);
+            } else {
+              _showModuleSelectedSnackbar(title);
+            }
+          },
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 3.5.w, vertical: 1.0.h),
+            child: Row(
+              children: [
+                Icon(
+                  icon,
+                  size: 20,
+                  color: isSelected
+                      ? Colors.white
+                      : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569)),
+                ),
+                SizedBox(width: 3.5.w),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      fontFamily: AppStyles.fontFamily,
+                      fontSize: 14.5.sp,
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                      color: isSelected ? Colors.white : textPrimary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
