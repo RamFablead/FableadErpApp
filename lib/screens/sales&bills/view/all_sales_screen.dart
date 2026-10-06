@@ -5,12 +5,14 @@ import 'package:sizer/sizer.dart';
 import '../../../core/widgets/calculator_widget.dart';
 import '../../../models/order_model.dart';
 import '../../../services/order_service.dart';
+import '../../../services/pdf_invoice_service.dart';
 import '../../../widgets/custom_app_bar.dart';
 import '../../../widgets/custom_bottom_bar.dart';
 import '../../../widgets/custom_drawer.dart';
 import '../../home_screen.dart';
 import '../../products/view/product_screen.dart';
 import '../../profile_screen.dart';
+import 'invoice_pdf_viewer_screen.dart';
 import 'sales_detail_screen.dart';
 import 'sales_screen.dart';
 
@@ -71,6 +73,7 @@ class _AllSalesScreenState extends State<AllSalesScreen> {
 
   // Live API State
   final OrderService _orderService = OrderService();
+  final PdfInvoiceService _pdfInvoiceService = PdfInvoiceService();
   final _GstTabState _withoutGstState = _GstTabState();
   final _GstTabState _withGstState = _GstTabState();
 
@@ -332,6 +335,306 @@ class _AllSalesScreenState extends State<AllSalesScreen> {
     }
   }
 
+  void _openInvoicePdf(OrderItemModel order) {
+    Get.to(() => InvoicePdfViewerScreen(
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+          pdfUrl: order.effectiveInvoicePdfUrl,
+        ));
+  }
+
+  Future<void> _downloadOrPrintInvoice(OrderItemModel order) async {
+    Get.showSnackbar(
+      GetSnackBar(
+        message: 'Downloading Invoice #${order.orderNumber}...',
+        duration: const Duration(seconds: 2),
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: const Color(0xFF0F172A),
+        showProgressIndicator: true,
+      ),
+    );
+
+    try {
+      final filePath = await _pdfInvoiceService.downloadInvoicePdf(
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        rawPdfUrl: order.effectiveInvoicePdfUrl,
+      );
+
+      Get.closeCurrentSnackbar();
+      Get.snackbar(
+        'Invoice Downloaded',
+        'Invoice #${order.orderNumber} saved successfully',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: const Color(0xFF10B981),
+        colorText: Colors.white,
+        duration: const Duration(seconds: 4),
+        mainButton: TextButton(
+          onPressed: () => _pdfInvoiceService.openPdfFile(filePath),
+          child: const Text(
+            'OPEN',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+              decoration: TextDecoration.underline,
+            ),
+          ),
+        ),
+      );
+    } catch (e) {
+      Get.closeCurrentSnackbar();
+      Get.snackbar(
+        'Download Failed',
+        e.toString().replaceAll('Exception: ', ''),
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: const Color(0xFFEF4444),
+        colorText: Colors.white,
+      );
+    }
+  }
+
+  void _showOrderHistorySheet(OrderItemModel order) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      isScrollControlled: true,
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE2E8F0),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEFF6FF),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.history_rounded,
+                            color: Color(0xFF2563EB), size: 20),
+                      ),
+                      const SizedBox(width: 10),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Order History & Audit',
+                            style: TextStyle(
+                              fontSize: 16.sp,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFF0F172A),
+                            ),
+                          ),
+                          Text(
+                            'Bill #${order.orderNumber}',
+                            style: TextStyle(
+                              fontSize: 12.sp,
+                              color: const Color(0xFF64748B),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded, size: 20),
+                        onPressed: () => Navigator.pop(ctx),
+                        color: const Color(0xFF64748B),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 20, color: Color(0xFFF1F5F9)),
+                  _buildHistoryTile(Icons.calendar_today_rounded, 'Order Date',
+                      _formatDate(order.effectiveDate)),
+                  _buildHistoryTile(Icons.person_outline_rounded, 'Customer',
+                      order.customerName),
+                  if (order.customerPhone.isNotEmpty)
+                    _buildHistoryTile(
+                        Icons.phone_outlined, 'Contact', order.customerPhone),
+                  _buildHistoryTile(Icons.badge_outlined, 'Staff / Biller',
+                      order.effectiveStaffName),
+                  _buildHistoryTile(Icons.local_shipping_outlined, 'Order Type',
+                      order.displayOrderType),
+                  _buildHistoryTile(Icons.payment_rounded, 'Payment Status',
+                      order.displayPaymentStatus),
+                  _buildHistoryTile(Icons.currency_rupee_rounded, 'Total Amount',
+                      _formatCurrency(order.totalAmount)),
+                  if (order.remarks != null && order.remarks!.isNotEmpty)
+                    _buildHistoryTile(
+                        Icons.notes_rounded, 'Remarks', order.remarks!),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildHistoryTile(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 16, color: const Color(0xFF64748B)),
+          const SizedBox(width: 10),
+          SizedBox(
+            width: 110,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 12.5.sp,
+                color: const Color(0xFF64748B),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 12.5.sp,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFF0F172A),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Dropdown Popup Menu matching ERP screenshot:
+  /// History, View, Edit, Invoice, Print Invoice, Delete
+  /// (Explicitly without Upload QR & Raise Ticket)
+  Widget _buildPopupMenu(OrderItemModel order) {
+    return PopupMenuButton<String>(
+      icon: const Icon(
+        Icons.more_vert_rounded,
+        color: Color(0xFF94A3B8),
+        size: 20,
+      ),
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      color: Colors.white,
+      elevation: 6,
+      offset: const Offset(0, 30),
+      onSelected: (value) {
+        switch (value) {
+          case 'history':
+            _showOrderHistorySheet(order);
+            break;
+          case 'view':
+            Get.to(() => SalesDetailScreen(
+                  orderId: order.id,
+                  initialOrder: order,
+                ));
+            break;
+          case 'edit':
+            Get.to(() => SalesScreen(editOrderId: order.id));
+            break;
+          case 'invoice':
+            _openInvoicePdf(order);
+            break;
+          case 'print':
+            _downloadOrPrintInvoice(order);
+            break;
+          case 'delete':
+            _confirmDeleteOrder(order);
+            break;
+        }
+      },
+      itemBuilder: (context) => [
+        _buildPopupMenuItem(
+          'history',
+          Icons.history_rounded,
+          'History',
+          const Color(0xFF334155),
+        ),
+        _buildPopupMenuItem(
+          'view',
+          Icons.visibility_outlined,
+          'View',
+          const Color(0xFF334155),
+        ),
+        _buildPopupMenuItem(
+          'edit',
+          Icons.edit_outlined,
+          'Edit',
+          const Color(0xFF334155),
+        ),
+        _buildPopupMenuItem(
+          'invoice',
+          Icons.description_outlined,
+          'Invoice',
+          const Color(0xFF334155),
+        ),
+        _buildPopupMenuItem(
+          'print',
+          Icons.print_outlined,
+          'Print Invoice',
+          const Color(0xFF334155),
+        ),
+        const PopupMenuDivider(height: 1),
+        _buildPopupMenuItem(
+          'delete',
+          Icons.delete_outline_rounded,
+          'Delete',
+          const Color(0xFFEF4444),
+          isDestructive: true,
+        ),
+      ],
+    );
+  }
+
+  PopupMenuItem<String> _buildPopupMenuItem(
+    String value,
+    IconData icon,
+    String label,
+    Color color, {
+    bool isDestructive = false,
+  }) {
+    return PopupMenuItem<String>(
+      value: value,
+      height: 40,
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: color),
+          const SizedBox(width: 12),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 13.sp,
+              fontWeight: isDestructive ? FontWeight.w700 : FontWeight.w600,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showBillActionSheet(OrderItemModel order) {
     showModalBottomSheet(
       context: context,
@@ -343,84 +646,97 @@ class _AllSalesScreenState extends State<AllSalesScreen> {
         return SafeArea(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 40,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE2E8F0),
-                    borderRadius: BorderRadius.circular(2),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE2E8F0),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
-                ),
-                Row(
-                  children: [
-                    Text(
-                      'Bill #${order.orderNumber}',
-                      style: TextStyle(
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF0F172A),
+                  Row(
+                    children: [
+                      Text(
+                        'Bill #${order.orderNumber}',
+                        style: TextStyle(
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF0F172A),
+                        ),
                       ),
-                    ),
-                    const Spacer(),
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded, size: 20),
-                      onPressed: () => Navigator.pop(ctx),
-                      color: const Color(0xFF64748B),
-                    ),
-                  ],
-                ),
-                const Divider(height: 16, color: Color(0xFFF1F5F9)),
-                _buildActionTile(
-                  icon: Icons.visibility_outlined,
-                  label: 'View Bill Details',
-                  color: const Color(0xFF0F172A),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    Get.to(() =>
-                        SalesDetailScreen(
-                          orderId: order.id,
-                          initialOrder: order,
-                        ));
-                  },
-                ),
-                _buildActionTile(
-                  icon: Icons.picture_as_pdf_outlined,
-                  label: 'Download PDF Invoice',
-                  color: const Color(0xFF0F172A),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    Get.snackbar(
-                      'PDF Saved',
-                      'Invoice downloaded successfully',
-                      snackPosition: SnackPosition.BOTTOM,
-                      backgroundColor: const Color(0xFF10B981),
-                      colorText: Colors.white,
-                    );
-                  },
-                ),
-                _buildActionTile(
-                  icon: Icons.edit_outlined,
-                  label: 'Edit Bill',
-                  color: const Color(0xFF0F172A),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    Get.to(() => SalesScreen(editOrderId: order.id));
-                  },
-                ),
-                _buildActionTile(
-                  icon: Icons.delete_outline_rounded,
-                  label: 'Delete Bill',
-                  color: const Color(0xFFEF4444),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    _confirmDeleteOrder(order);
-                  },
-                ),
-              ],
+                      const Spacer(),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded, size: 20),
+                        onPressed: () => Navigator.pop(ctx),
+                        color: const Color(0xFF64748B),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 16, color: Color(0xFFF1F5F9)),
+                  _buildActionTile(
+                    icon: Icons.history_rounded,
+                    label: 'History',
+                    color: const Color(0xFF0F172A),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _showOrderHistorySheet(order);
+                    },
+                  ),
+                  _buildActionTile(
+                    icon: Icons.visibility_outlined,
+                    label: 'View',
+                    color: const Color(0xFF0F172A),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      Get.to(() => SalesDetailScreen(
+                            orderId: order.id,
+                            initialOrder: order,
+                          ));
+                    },
+                  ),
+                  _buildActionTile(
+                    icon: Icons.edit_outlined,
+                    label: 'Edit',
+                    color: const Color(0xFF0F172A),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      Get.to(() => SalesScreen(editOrderId: order.id));
+                    },
+                  ),
+                  _buildActionTile(
+                    icon: Icons.description_outlined,
+                    label: 'Invoice',
+                    color: const Color(0xFF0F172A),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _openInvoicePdf(order);
+                    },
+                  ),
+                  _buildActionTile(
+                    icon: Icons.print_outlined,
+                    label: 'Print Invoice',
+                    color: const Color(0xFF0F172A),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _downloadOrPrintInvoice(order);
+                    },
+                  ),
+                  _buildActionTile(
+                    icon: Icons.delete_outline_rounded,
+                    label: 'Delete',
+                    color: const Color(0xFFEF4444),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _confirmDeleteOrder(order);
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -870,6 +1186,7 @@ class _AllSalesScreenState extends State<AllSalesScreen> {
             Get.to(() =>
                 SalesDetailScreen(orderId: order.id, initialOrder: order));
           },
+          onLongPress: () => _showBillActionSheet(order),
           child: Padding(
             padding: const EdgeInsets.all(14),
             child: Column(
@@ -934,14 +1251,7 @@ class _AllSalesScreenState extends State<AllSalesScreen> {
                           ),
                         ),
                         const SizedBox(width: 4),
-                        IconButton(
-                          icon: const Icon(
-                              Icons.more_vert_rounded, color: Color(0xFF94A3B8),
-                              size: 20),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          onPressed: () => _showBillActionSheet(order),
-                        ),
+                        _buildPopupMenu(order),
                       ],
                     ),
                   ],
@@ -1030,6 +1340,40 @@ class _AllSalesScreenState extends State<AllSalesScreen> {
                     // Status Badges
                     Row(
                       children: [
+                        // Quick Invoice PDF Button
+                        InkWell(
+                          onTap: () => _openInvoicePdf(order),
+                          borderRadius: BorderRadius.circular(4),
+                          child: Container(
+                            margin: const EdgeInsets.only(right: 6),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFF7ED),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                color: const Color(0xFFFED7AA),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.picture_as_pdf_outlined,
+                                    size: 12, color: Color(0xFFFF6B2C)),
+                                const SizedBox(width: 3),
+                                Text(
+                                  'Invoice',
+                                  style: TextStyle(
+                                    fontSize: 10.5.sp,
+                                    fontWeight: FontWeight.w700,
+                                    color: const Color(0xFFFF6B2C),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+
                         // GST tag
                         Container(
                           margin: const EdgeInsets.only(right: 6),

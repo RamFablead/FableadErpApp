@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:sizer/sizer.dart';
 import '../../../models/order_model.dart';
 import '../../../services/order_service.dart';
+import 'invoice_pdf_viewer_screen.dart';
 import 'sales_screen.dart';
 
 class SalesDetailScreen extends StatefulWidget {
@@ -128,7 +129,9 @@ class _SalesDetailScreenState extends State<SalesDetailScreen> {
           colorText: Colors.white,
           margin: const EdgeInsets.all(12),
         );
-        Navigator.pop(context, true); // Pop back to All Sales Screen
+        if (mounted) {
+          Navigator.pop(context, true); // Pop back to All Sales Screen
+        }
       } else {
         Get.snackbar(
           'Delete Failed',
@@ -192,7 +195,19 @@ class _SalesDetailScreenState extends State<SalesDetailScreen> {
         actions: [
           if (sales != null) ...[
             IconButton(
-              icon: const Icon(Icons.edit_outlined, color: Color(0xFFFF6B2C)),
+              icon: const Icon(Icons.picture_as_pdf_outlined,
+                  color: Color(0xFFFF6B2C)),
+              tooltip: 'Invoice PDF',
+              onPressed: () {
+                Get.to(() => InvoicePdfViewerScreen(
+                      orderId: sales.id,
+                      orderNumber: sales.orderNumber,
+                      pdfUrl: sales.effectiveInvoicePdfUrl,
+                    ));
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.edit_outlined, color: Color(0xFF64748B)),
               tooltip: 'Edit Order',
               onPressed: () {
                 Get.to(() => SalesScreen(editOrderId: sales.id));
@@ -487,6 +502,95 @@ class _SalesDetailScreenState extends State<SalesDetailScreen> {
                   borderColor: const Color(0xFFE2E8F0),
                 ),
             ],
+          ),
+
+          const SizedBox(height: 14),
+
+          // Invoice PDF Banner Action Card
+          Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF7ED),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFFED7AA)),
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(10),
+                onTap: () {
+                  Get.to(() => InvoicePdfViewerScreen(
+                        orderId: sales.id,
+                        orderNumber: sales.orderNumber,
+                        pdfUrl: sales.effectiveInvoicePdfUrl,
+                      ));
+                },
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(7),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFF6B2C),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.picture_as_pdf_rounded,
+                            color: Colors.white, size: 20),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Invoice PDF Bill',
+                              style: TextStyle(
+                                fontSize: 13.5.sp,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFF0F172A),
+                              ),
+                            ),
+                            Text(
+                              'Tap to view, download & print bill',
+                              style: TextStyle(
+                                fontSize: 11.sp,
+                                color: const Color(0xFF64748B),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: const Color(0xFFFED7AA)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'View PDF',
+                              style: TextStyle(
+                                fontSize: 11.5.sp,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFFFF6B2C),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            const Icon(Icons.arrow_forward_ios_rounded,
+                                size: 11, color: Color(0xFFFF6B2C)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -1249,12 +1353,37 @@ class _SalesDetailScreenState extends State<SalesDetailScreen> {
             ),
           ),
 
+          // Invoice PDF Button
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFFFF6B2C),
+              side: const BorderSide(color: Color(0xFFFF6B2C), width: 1.5),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            onPressed: () {
+              Get.to(() => InvoicePdfViewerScreen(
+                    orderId: sales.id,
+                    orderNumber: sales.orderNumber,
+                    pdfUrl: sales.effectiveInvoicePdfUrl,
+                  ));
+            },
+            icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
+            label: const Text(
+              'Invoice PDF',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5),
+            ),
+          ),
+          const SizedBox(width: 8),
+
           // Edit Order Button
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFFF6B2C),
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
               ),
@@ -1266,7 +1395,7 @@ class _SalesDetailScreenState extends State<SalesDetailScreen> {
             icon: const Icon(Icons.edit_outlined, size: 18),
             label: const Text(
               'Edit Order',
-              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5),
             ),
           ),
         ],
